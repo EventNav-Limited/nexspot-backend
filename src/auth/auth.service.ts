@@ -40,6 +40,7 @@ export class AuthService {
       user: { id: newUser.id, email: newUser.email },
       token: await this.jwtService.signAsync(payload, {
         secret: env.JWT_SECRET,
+        expiresIn: env.JWT_EXPIRES_IN,
       }),
     };
   }
@@ -63,6 +64,7 @@ export class AuthService {
       user: { id: user.id, email: user.email, name: user.name },
       token: await this.jwtService.signAsync(payload, {
         secret: env.JWT_SECRET, // Manual pass to avoid your current "undefined" issue
+        expiresIn: env.JWT_EXPIRES_IN,
       }),
     };
   }
