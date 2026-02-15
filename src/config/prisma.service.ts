@@ -1,25 +1,14 @@
-import { PrismaPg } from '@prisma/adapter-pg';
+import { Injectable } from '@nestjs/common';
 import { PrismaClient } from '../generated/prisma/client.js';
-import { Injectable, OnModuleInit } from '@nestjs/common';
-import pg from 'pg';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { env } from './env.js';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit {
+export class PrismaService extends PrismaClient {
   constructor() {
-    // Manually define the pool config to ensure 'password' is explicitly passed
-    const pool = new pg.Pool({
-      user: 'postgres',
-      password: 'postgres',
-      host: 'localhost',
-      port: 5432,
-      database: 'nexspot-db',
+    const adapter = new PrismaPg({
+      connectionString: env.DATABASE_URL,
     });
-
-    const adapter = new PrismaPg(pool);
     super({ adapter });
-  }
-
-  async onModuleInit() {
-    await this.$connect();
   }
 }
