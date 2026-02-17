@@ -1,6 +1,7 @@
-import { IsEmail } from 'class-validator';
+import { PickType } from '@nestjs/mapped-types';
+import { RegisterDto } from './register.dto.js';
 
-export class ForgotPasswordDto {
-  @IsEmail()
-  email: string;
-}
+export class ForgotPasswordDto extends PickType(RegisterDto, [
+  'email',
+  'password',
+] as const) {}

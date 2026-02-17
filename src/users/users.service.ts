@@ -20,18 +20,6 @@ export class UsersService {
     });
   }
 
-  findByPasswordResetToken(token: string) {
-    return this.prisma.users.findFirst({
-      where: { password_reset_token: token },
-    });
-  }
-
-  findByPasswordResetToken(token: string) {
-    return this.prisma.users.findFirst({
-      where: { password_reset_token: token },
-    });
-  }
-
   findById(id: string) {
     return this.prisma.users.findUnique({
       where: { id },
