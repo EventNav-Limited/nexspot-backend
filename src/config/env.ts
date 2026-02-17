@@ -6,6 +6,7 @@ interface EnvConfig {
   JWT_EXPIRES_IN;
   PORT: number;
   NODE_ENV: string;
+  PASSWORD_RESET_EXPIRY_MINUTES: number;
   // EMAIL_SERVICE: string;
   // EMAIL_HOST: string;
   // EMAIL_PORT: number;
@@ -29,6 +30,10 @@ export const env: EnvConfig = {
   JWT_EXPIRES_IN: getEnvVar('JWT_EXPIRES_IN'),
   PORT: parseInt(getEnvVar('PORT', '3000'), 10),
   NODE_ENV: getEnvVar('NODE_ENV', 'development'),
+  PASSWORD_RESET_EXPIRY_MINUTES: parseInt(
+    getEnvVar('PASSWORD_RESET_EXPIRY_MINUTES', '60'),
+    10,
+  ),
   // EMAIL_SERVICE: getEnvVar('EMAIL_SERVICE', 'smtp'),
   // EMAIL_HOST: getEnvVar('EMAIL_HOST'),
   // EMAIL_PORT: parseInt(getEnvVar('EMAIL_PORT', '587'), 10),

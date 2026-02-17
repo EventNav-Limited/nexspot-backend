@@ -1,4 +1,5 @@
 import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
 import { JwtService } from '@nestjs/jwt';
 import {
   BadRequestException,
@@ -66,6 +67,59 @@ export class AuthService {
         secret: env.JWT_SECRET, // Manual pass to avoid your current "undefined" issue
         expiresIn: env.JWT_EXPIRES_IN,
       }),
+    };
+  }
+
+  async requestPasswordReset(email: string) {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      return {
+        message:
+          'If an account exists with this email, you will receive a password reset link.',
+      };
+    }
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setMinutes(
+      expiresAt.getMinutes() + env.PASSWORD_RESET_EXPIRY_MINUTES,
+    );
+
+    await this.usersService.update(user.id, {
+      password_reset_token: token,
+      password_reset_expires_at: expiresAt,
+    });
+
+    // TODO: send email with reset link (e.g. https://yourapp.com/reset-password?token=...)
+    // For now we return the token in dev only so you can test; remove in production.
+    const isDev = env.NODE_ENV === 'development';
+    return {
+      message:
+        'If an account exists with this email, you will receive a password reset link.',
+      ...(isDev && { resetToken: token }),
+    };
+  }
+
+  async resetPassword(token: string, newPassword: string) {
+    const user = await this.usersService.findByPasswordResetToken(token);
+    if (!user || !user.password_reset_expires_at) {
+      throw new UnauthorizedException('Invalid or expired reset token');
+    }
+    if (new Date() > user.password_reset_expires_at) {
+      throw new UnauthorizedException('Reset token has expired');
+    }
+
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+    await this.usersService.update(user.id, {
+      password: hashedPassword,
+      password_reset_token: null,
+      password_reset_expires_at: null,
+    });
+
+    return {
+      message: 'Password has been reset. You can now log in with your new password.',
     };
   }
 }
