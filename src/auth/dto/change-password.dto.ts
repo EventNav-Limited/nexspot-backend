@@ -4,7 +4,7 @@ export class ChangePasswordDto {
   id: string;
 
   @IsEmail()
-  email?: string;
+  email: string | null;
 
   oldPassword: string;
 

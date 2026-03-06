@@ -188,7 +188,7 @@ export class AuthService {
   // // }
 
   async changePassword(dto: ChangePasswordDto) {
-    const user = await this.usersService.findByEmail(dto.email as string);
+    const user = await this.usersService.findByEmail(dto.email!);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
