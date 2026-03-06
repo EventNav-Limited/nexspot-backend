@@ -1,16 +1,16 @@
 import { Injectable } from '@nestjs/common';
-import { Prisma, users } from '../generated/prisma/client.js';
+import { Prisma, Users } from '../generated/prisma/client.js';
 import { PrismaService } from '../config/prisma.service.js';
 
 @Injectable()
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  create(data: Prisma.usersCreateInput): Promise<Omit<users, 'password'>> {
+  create(data: Prisma.UsersCreateInput): Promise<Omit<Users, 'password'>> {
     return this.prisma.users.create({ data });
   }
 
-  findAll(): Promise<Omit<users, 'password'>[]> {
+  findAll(): Promise<Omit<Users, 'password'>[]> {
     return this.prisma.users.findMany();
   }
 
@@ -26,7 +26,7 @@ export class UsersService {
     });
   }
 
-  update(id: string, data: Prisma.usersUpdateInput) {
+  update(id: string, data: Prisma.UsersUpdateInput) {
     return this.prisma.users.update({
       where: {
         id, // Must be a unique field
