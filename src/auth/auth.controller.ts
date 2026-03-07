@@ -29,7 +29,6 @@ export class AuthController {
       httpOnly: true, // Prevents JavaScript access
       secure: false, // Only sent over HTTPS (use false in dev if not using HTTPS)
       sameSite: 'strict', // Prevents CSRF (use 'lax' if needed for cross-site requests)
-      path: '/auth/refresh',
     });
 
     res.cookie('device_id', device_id, {
@@ -64,7 +63,7 @@ export class AuthController {
       httpOnly: true, // Prevents JavaScript access
       secure: false, // Only sent over HTTPS (use false in dev if not using HTTPS)
       sameSite: 'strict', // Prevents CSRF (use 'lax' if needed for cross-site requests)
-      path: '/auth/refresh',
+      path: '/',
     });
 
     res.cookie('device_id', device_id, {
@@ -97,8 +96,7 @@ export class AuthController {
   @Post('change-password')
   @UseGuards(JwtAuthGuard)
   async changePassword(@Req() req, @Body() dto: ChangePasswordDto) {
-    dto.email = req.user.email;
-    return this.authService.changePassword(dto);
+    return this.authService.changePassword(dto, req.user.email);
   }
 
   // auth.controller.ts
@@ -107,9 +105,10 @@ export class AuthController {
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refresh_token = req.cookies?.refresh_token;
 
-    if (refresh_token) {
-      await this.authService.logout(refresh_token);
+    if (!refresh_token) {
+      console.log('no token');
     }
+    await this.authService.logout(refresh_token);
 
     res.clearCookie('refresh_token', { httpOnly: true, sameSite: 'strict' });
     res.clearCookie('device_id', { sameSite: 'lax' });
