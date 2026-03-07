@@ -48,7 +48,8 @@ export class AuthService {
 
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const token_hash = await bcrypt.hash(refresh_token, 12);
+    const salt = await bcrypt.genSalt(12);
+    const token_hash = await bcrypt.hash(refresh_token, salt);
 
     const newSession = this.tokenService.createSession({
       device_id,
@@ -100,7 +101,8 @@ export class AuthService {
 
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const token_hash = await bcrypt.hash(refresh_token, 12);
+    const salt = await bcrypt.genSalt(12);
+    const token_hash = await bcrypt.hash(refresh_token, salt);
 
     await this.tokenService.updateSession({
       device_id,
@@ -187,8 +189,8 @@ export class AuthService {
   // //   };
   // // }
 
-  async changePassword(dto: ChangePasswordDto) {
-    const user = await this.usersService.findByEmail(dto.email!);
+  async changePassword(dto: ChangePasswordDto, email: string) {
+    const user = await this.usersService.findByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
@@ -216,10 +218,10 @@ export class AuthService {
   async logout(refresh_token: string) {
     // Verify just to extract device_id — ignore expiry,
     // an expired token should still be able to log out
-    let payload: { sub: string; device_id: string };
+    let payload: { user_id: string; device_id: string };
     try {
       payload = this.jwtService.verify(refresh_token, {
-        secret: process.env.REFRESH_SECRET,
+        secret: env.REFRESH_SECRET,
         ignoreExpiration: true, // ← key difference from refresh
       });
     } catch {
@@ -227,6 +229,8 @@ export class AuthService {
       return;
     }
 
-    await this.tokenService.deleteSession(payload.device_id);
+    console.log('logout payload:', payload);
+
+    return this.tokenService.deleteSession(payload.device_id);
   }
 }
