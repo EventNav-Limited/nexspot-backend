@@ -12,6 +12,7 @@ import { RegisterDto } from './dto/register.dto.js';
 import type { Response, Request } from 'express';
 import { JwtAuthGuard } from './guard/jwt-auth.guard.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { errorResponse, successResponse } from '../lib/response.lib.js';
 
 @Controller('auth')
 export class AuthController {
@@ -22,26 +23,27 @@ export class AuthController {
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    const [refresh_token, device_id, data] =
-      await this.authService.register(dto);
-    // Set refresh_token as HTTP-only, secure cookie
-    res.cookie('refresh_token', refresh_token, {
-      httpOnly: true, // Prevents JavaScript access
-      secure: false, // Only sent over HTTPS (use false in dev if not using HTTPS)
-      sameSite: 'strict', // Prevents CSRF (use 'lax' if needed for cross-site requests)
-    });
+    try {
+      const [refresh_token, device_id, data] =
+        await this.authService.register(dto);
+      // Set refresh_token as HTTP-only, secure cookie
+      res.cookie('refresh_token', refresh_token, {
+        httpOnly: true, // Prevents JavaScript access
+        secure: false, // Only sent over HTTPS (use false in dev if not using HTTPS)
+        sameSite: 'strict', // Prevents CSRF (use 'lax' if needed for cross-site requests)
+      });
 
-    res.cookie('device_id', device_id, {
-      httpOnly: false,
-      secure: false,
-      sameSite: 'lax',
-      maxAge: 365 * 24 * 60 * 60 * 1000,
-    });
+      res.cookie('device_id', device_id, {
+        httpOnly: false,
+        secure: false,
+        sameSite: 'lax',
+        maxAge: 365 * 24 * 60 * 60 * 1000,
+      });
 
-    return {
-      success: true,
-      data,
-    };
+      return successResponse(data);
+    } catch (error) {
+      return errorResponse(error.response.statusCode, error.response.message);
+    }
   }
 
   @Post('login')
@@ -50,33 +52,38 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    let device_id = req.cookies.device_id;
+    try {
+      let device_id = req.cookies.device_id;
 
-    if (!device_id) {
-      device_id = crypto.randomUUID();
+      if (!device_id) {
+        device_id = crypto.randomUUID();
+      }
+
+      const [refresh_token, data] = await this.authService.login(
+        dto,
+        device_id,
+      );
+
+      // Set refresh_token as HTTP-only, secure cookie
+      res.cookie('refresh_token', refresh_token, {
+        httpOnly: true, // Prevents JavaScript access
+        secure: false, // Only sent over HTTPS (use false in dev if not using HTTPS)
+        sameSite: 'strict', // Prevents CSRF (use 'lax' if needed for cross-site requests)
+        path: '/',
+      });
+
+      res.cookie('device_id', device_id, {
+        httpOnly: false,
+        secure: true,
+        sameSite: 'lax',
+        maxAge: 365 * 24 * 60 * 60 * 1000,
+      });
+
+      return successResponse(data);
+    } catch (error) {
+      console.log('hehehe:', error);
+      return errorResponse(error.response.statusCode, error.response.message);
     }
-
-    const [refresh_token, data] = await this.authService.login(dto, device_id);
-
-    // Set refresh_token as HTTP-only, secure cookie
-    res.cookie('refresh_token', refresh_token, {
-      httpOnly: true, // Prevents JavaScript access
-      secure: false, // Only sent over HTTPS (use false in dev if not using HTTPS)
-      sameSite: 'strict', // Prevents CSRF (use 'lax' if needed for cross-site requests)
-      path: '/',
-    });
-
-    res.cookie('device_id', device_id, {
-      httpOnly: false,
-      secure: true,
-      sameSite: 'lax',
-      maxAge: 365 * 24 * 60 * 60 * 1000,
-    });
-
-    return {
-      success: true,
-      data,
-    };
   }
 
   // auth.controller.ts
