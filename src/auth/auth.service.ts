@@ -71,6 +71,7 @@ export class AuthService {
           last_name: dto.lastName,
           email: newUser.email,
           role: newUser.role,
+          profile_photo_url: `https://ui-avatars.com/api/?name=${dto.firstName}+${dto.lastName}`,
           created_at: newUser.created_at,
         },
         access_token: access_token,
@@ -123,6 +124,7 @@ export class AuthService {
           last_name: name[1],
           email: user.email,
           role: user.role,
+          profile_photo_url: `https://ui-avatars.com/api/?name=${name[0]}+${name[1]}`,
           created_at: user.created_at,
         },
         access_token: access_token,
@@ -220,7 +222,7 @@ export class AuthService {
     // an expired token should still be able to log out
     let payload: { user_id: string; device_id: string };
     try {
-      payload = this.jwtService.verify(refresh_token, {
+      payload = await this.jwtService.verify(refresh_token, {
         secret: env.REFRESH_SECRET,
         ignoreExpiration: true, // ← key difference from refresh
       });
