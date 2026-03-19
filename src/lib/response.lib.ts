@@ -8,7 +8,8 @@ export interface SuccessResponse<T> {
 export interface ErrorResponse {
   success: false;
   error: {
-    code: number;
+    status: number; // HTTP status e.g. 401
+    code: string; // string code e.g. "UNAUTHORIZED"
     message: string;
     details?: { field: string; message: string }[];
   };
@@ -22,16 +23,13 @@ export function successResponse<T>(data: T): SuccessResponse<T> {
 }
 
 export function errorResponse(
-  code: number,
+  status: number,
+  code: string,
   message: string,
   details?: { field: string; message: string }[],
 ): ErrorResponse {
   return {
     success: false,
-    error: {
-      code,
-      message,
-      details,
-    },
+    error: { status, code, message, details },
   };
 }
