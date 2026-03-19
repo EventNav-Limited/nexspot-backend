@@ -1,10 +1,6 @@
 import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
-import {
-  BadRequestException,
-  Injectable,
-  UnauthorizedException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto.js';
 import { UsersService } from '../users/users.service.js';
 import { LoginDto } from './dto/login.dto.js';
@@ -12,6 +8,7 @@ import { LoginDto } from './dto/login.dto.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { TokenService } from './token.service.js';
 import { env } from '../config/env.js';
+import { ConflictException, UnauthorizedException } from '../lib/error.lib.js';
 
 @Injectable()
 export class AuthService {
@@ -23,7 +20,8 @@ export class AuthService {
   async register(dto: RegisterDto) {
     // 1. Check if user already exists
     const userExists = await this.usersService.findByEmail(dto.email);
-    if (userExists) throw new BadRequestException('Email already in use');
+    if (userExists)
+      throw new ConflictException('An account with this email already exists');
 
     // 2. Hash the password (using 10 salt rounds)
     const hashedPassword = await bcrypt.hash(dto.password, 12);
@@ -61,10 +59,10 @@ export class AuthService {
     });
 
     // 4. Return JWT (optional: some APIs require manual login after register)
-    return [
+    return {
       refresh_token,
-      (await newSession).device_id,
-      {
+      device_id: (await newSession).device_id,
+      payload: {
         user: {
           id: newUser.id,
           first_name: dto.firstName,
@@ -74,16 +72,16 @@ export class AuthService {
           profile_photo_url: `https://ui-avatars.com/api/?name=${dto.firstName}+${dto.lastName}`,
           created_at: newUser.created_at,
         },
-        access_token: access_token,
+        access_token,
       },
-    ];
+    };
   }
 
   async login(dto: LoginDto, device_id: string) {
     // 1. Find user by email
     const user = await this.usersService.findByEmail(dto.email);
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Invalid Email Or Password');
     }
 
     const name = user.name.split(/\s+/);
@@ -91,7 +89,7 @@ export class AuthService {
     // 2. Compare passwords
     const isMatch = await bcrypt.compare(dto.password, user.password);
     if (!isMatch) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Invalid Email Or Password');
     }
 
     const access_token = this.tokenService.generateAccessToken(user.id);
@@ -115,9 +113,9 @@ export class AuthService {
     });
 
     // 3. Generate JWT
-    return [
+    return {
       refresh_token,
-      {
+      payload: {
         user: {
           id: user.id,
           first_name: name[0],
@@ -127,9 +125,9 @@ export class AuthService {
           profile_photo_url: `https://ui-avatars.com/api/?name=${name[0]}+${name[1]}`,
           created_at: user.created_at,
         },
-        access_token: access_token,
+        access_token,
       },
-    ];
+    };
   }
 
   // auth.service.ts
@@ -143,6 +141,9 @@ export class AuthService {
     } catch {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
+
+    const user = await this.usersService.findById(payload.sub);
+    if (!user) throw new UnauthorizedException('User no longer exists');
 
     // 2. Find session
     const session = await this.tokenService.findSession(payload.device_id);
@@ -159,7 +160,7 @@ export class AuthService {
     // 4. Validate token hash
     const valid = await bcrypt.compare(refresh_token, session.token_hash);
     if (!valid) {
-      throw new UnauthorizedException('Invalid refresh token');
+      throw new UnauthorizedException('Refresh token reuse detected');
     }
 
     // 5. Issue new access token
@@ -220,7 +221,7 @@ export class AuthService {
   async logout(refresh_token: string) {
     // Verify just to extract device_id — ignore expiry,
     // an expired token should still be able to log out
-    let payload: { user_id: string; device_id: string };
+    let payload: { sub: string; device_id: string };
     try {
       payload = await this.jwtService.verify(refresh_token, {
         secret: env.REFRESH_SECRET,

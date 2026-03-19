@@ -12,39 +12,47 @@ import { RegisterDto } from './dto/register.dto.js';
 import type { Response, Request } from 'express';
 import { JwtAuthGuard } from './guard/jwt-auth.guard.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
-import { errorResponse, successResponse } from '../lib/response.lib.js';
+import { successResponse } from '../lib/response.lib.js';
+
+const REFRESH_COOKIE = 'refresh_token';
+const DEVICE_COOKIE = 'device_id';
+
+const refreshCookieOptions = {
+  httpOnly: true, // JS cannot read it
+  secure: true, // HTTPS only
+  sameSite: 'strict' as const,
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+  path: '/auth', // only sent to /auth/* routes
+};
+
+const deviceCookieOptions = {
+  httpOnly: false,
+  secure: false,
+  sameSite: 'lax' as const,
+  maxAge: 365 * 24 * 60 * 60 * 1000,
+};
 
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+
+  // ─── Register ──────────────────────────────────────────────────────────────
 
   @Post('register')
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
   ) {
-    try {
-      const [refresh_token, device_id, data] =
-        await this.authService.register(dto);
-      // Set refresh_token as HTTP-only, secure cookie
-      res.cookie('refresh_token', refresh_token, {
-        httpOnly: true, // Prevents JavaScript access
-        secure: false, // Only sent over HTTPS (use false in dev if not using HTTPS)
-        sameSite: 'strict', // Prevents CSRF (use 'lax' if needed for cross-site requests)
-      });
+    const { refresh_token, device_id, ...data } =
+      await this.authService.register(dto);
 
-      res.cookie('device_id', device_id, {
-        httpOnly: false,
-        secure: false,
-        sameSite: 'lax',
-        maxAge: 365 * 24 * 60 * 60 * 1000,
-      });
+    res.cookie(DEVICE_COOKIE, device_id, deviceCookieOptions);
+    res.cookie(REFRESH_COOKIE, refresh_token, refreshCookieOptions);
 
-      return successResponse(data);
-    } catch (error) {
-      return errorResponse(error.response.statusCode, error.response.message);
-    }
+    return successResponse(data);
   }
+
+  // ─── Login ──────────────────────────────────────────────────────────────
 
   @Post('login')
   async login(
@@ -52,38 +60,23 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
-    try {
-      let device_id = req.cookies.device_id;
+    let device_id = req.cookies.device_id;
 
-      if (!device_id) {
-        device_id = crypto.randomUUID();
-      }
-
-      const [refresh_token, data] = await this.authService.login(
-        dto,
-        device_id,
-      );
-
-      // Set refresh_token as HTTP-only, secure cookie
-      res.cookie('refresh_token', refresh_token, {
-        httpOnly: true, // Prevents JavaScript access
-        secure: false, // Only sent over HTTPS (use false in dev if not using HTTPS)
-        sameSite: 'strict', // Prevents CSRF (use 'lax' if needed for cross-site requests)
-        path: '/',
-      });
-
-      res.cookie('device_id', device_id, {
-        httpOnly: false,
-        secure: true,
-        sameSite: 'lax',
-        maxAge: 365 * 24 * 60 * 60 * 1000,
-      });
-
-      return successResponse(data);
-    } catch (error) {
-      console.log('hehehe:', error);
-      return errorResponse(error.response.statusCode, error.response.message);
+    if (!device_id) {
+      device_id = crypto.randomUUID();
     }
+
+    const { refresh_token, ...data } = await this.authService.login(
+      dto,
+      device_id,
+    );
+
+    // Set refresh_token as HTTP-only, secure cookie
+    res.cookie(REFRESH_COOKIE, refresh_token, refreshCookieOptions);
+
+    res.cookie(DEVICE_COOKIE, device_id, deviceCookieOptions);
+
+    return successResponse(data);
   }
 
   // auth.controller.ts
@@ -97,13 +90,14 @@ export class AuthController {
 
     const { access_token } = await this.authService.refresh(refresh_token);
 
-    return { success: true, data: { access_token } };
+    return successResponse(access_token);
   }
 
   @Post('change-password')
   @UseGuards(JwtAuthGuard)
   async changePassword(@Req() req, @Body() dto: ChangePasswordDto) {
-    return this.authService.changePassword(dto, req.user.email);
+    const data = await this.authService.changePassword(dto, req.user.email);
+    return successResponse(data);
   }
 
   // auth.controller.ts
@@ -117,9 +111,9 @@ export class AuthController {
     }
     await this.authService.logout(refresh_token);
 
-    res.clearCookie('refresh_token', { httpOnly: true, sameSite: 'strict' });
-    res.clearCookie('device_id', { sameSite: 'lax' });
+    res.clearCookie(REFRESH_COOKIE, { httpOnly: true, sameSite: 'strict' });
+    res.clearCookie(DEVICE_COOKIE, { sameSite: 'lax' });
 
-    return { success: true, message: null };
+    return successResponse(null);
   }
 }
