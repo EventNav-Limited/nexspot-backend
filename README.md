@@ -1,10 +1,10 @@
 # Nexspot API — Auth Module
 
 **Stack:** NestJS + Prisma · **Version:** 1.0.0  
-**Base URL:** `{{domain_name}}/v1`  
+**Base URL:** `{{domain_name}}`  
 **Content-Type:** `application/json`
 
-> **Status:** Auth module 4/6 complete. `forgot-password` and `reset-password` are pending mail service setup.
+> **Status:** Auth module 5/6 complete. `forgot-password` and `reset-password` are pending mail service setup.
 
 ---
 
