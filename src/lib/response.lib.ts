@@ -8,7 +8,7 @@ export interface SuccessResponse<T> {
 export interface ErrorResponse {
   success: false;
   error: {
-    code: string;
+    code: number;
     message: string;
     details?: { field: string; message: string }[];
   };
@@ -22,7 +22,7 @@ export function successResponse<T>(data: T): SuccessResponse<T> {
 }
 
 export function errorResponse(
-  code: string,
+  code: number,
   message: string,
   details?: { field: string; message: string }[],
 ): ErrorResponse {
