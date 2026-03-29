@@ -7,7 +7,7 @@ import { ConfigModule } from './config/config.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
 
 @Module({
-  imports: [AuthModule, UsersModule, ConfigModule, CategoriesModule],
+  imports: [ConfigModule, AuthModule, CategoriesModule, UsersModule],
   controllers: [AppController],
   providers: [AppService],
 })

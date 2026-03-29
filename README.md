@@ -1,10 +1,10 @@
-# Nexspot API — Auth Module
+# Nexspot API
 
 **Stack:** NestJS + Prisma · **Version:** 1.0.0  
 **Base URL:** `{{domain_name}}`  
 **Content-Type:** `application/json`
 
-> **Status:** Auth module 5/6 complete. `forgot-password` and `reset-password` are pending mail service setup.
+> **Status:** Auth module 4/6 complete. `forgot-password` and `reset-password` are pending mail service setup.
 
 ---
 
@@ -17,7 +17,8 @@
 | `POST` | `/auth/logout` | Yes | ✅ Done |
 | `POST` | `/auth/refresh` | No | ✅ Done |
 | `POST` | `/auth/forgot-password` | No | ⏳ Pending (mail service) |
-| `POST` | `/auth/change-password` | Yes | ✅ Done |
+| `POST` | `/auth/reset-password` | No | ⏳ Pending (mail service) |
+| `PUT` | `/me/change-password` | Yes | ✅ Done |
 
 ---
 
@@ -213,7 +214,7 @@ Sends a password reset link to the provided email address.
 
 ---
 
-### `POST /auth/change-password`
+### `PUT /me/password`
 
 > 🔒 **Protected** — requires a valid Bearer token.
 
@@ -247,29 +248,58 @@ Resets the user's password after verifying authentication startus.
 ## NestJS Module Structure
 
 ```
-src/
-├── auth/
-|   ├── auth.module.ts
-|   ├── auth.controller.ts
-|   ├── auth.service.ts
-|   ├── strategies/
-|   │   ├── jwt.strategy.ts
-|   ├── guards/
-|   │   └── jwt-auth.guard.ts
-|   └── dto/
-|       ├── register.dto.ts
-|       ├── login.dto.ts
-|       ├── forgot-password.dto.ts
-|       └── change-password.dto.ts
-├── config/
-|   ├── config.module.ts
-|   ├── en.ts
-|   └── prisma.service.ts
-├── lib/
-|   ├── response.lib.ts
-└── users/
-    ├── users.module.ts
+nexspot-backend/src/
+├── app.controller.ts
+├── app.module.ts
+├── app.service.ts
+├── auth
+│   ├── auth.controller.ts
+│   ├── auth.module.ts
+│   ├── auth.service.ts
+│   ├── dto
+│   │   ├── forgot-password.dto.ts
+│   │   ├── login.dto.ts
+│   │   └── register.dto.ts
+│   ├── guard
+│   │   └── jwt-auth.guard.ts
+│   ├── strategies
+│   │   └── jwt.strategies.ts
+│   └── token.service.ts
+├── categories
+│   ├── categories.controller.ts
+│   ├── categories.module.ts
+│   ├── categories.service.ts
+│   └── dto
+│       ├── create-category.dto.ts
+│       └── update-category.dto.ts
+├── config
+│   ├── config.module.ts
+│   ├── env.ts
+│   └── prisma.service.ts
+├── generated
+│   └── prisma
+│       ├── browser.ts
+│       ├── client.ts
+│       ├── commonInputTypes.ts
+│       ├── enums.ts
+│       ├── internal
+│       │   ├── class.ts
+│       │   ├── prismaNamespaceBrowser.ts
+│       │   └── prismaNamespace.ts
+│       ├── models
+│       │   ├── Session.ts
+│       │   └── Users.ts
+│       └── models.ts
+├── lib
+│   ├── error.lib.ts
+│   └── response.lib.ts
+├── main.ts
+└── users
+    ├── dto
+    │   └── change-password.dto.ts
     ├── users.controller.ts
+    ├── users.helper.ts
+    ├── users.module.ts
     └── users.service.ts
 ```
 
@@ -321,14 +351,14 @@ enum Role {
 
 | Module | Endpoints | Done | Status |
 |--------|-----------|------|--------|
-| Auth | 6 | 5 | ⚡ In Progress |
+| Auth | 6 | 4 | ⚡ In Progress |
 | Categories & Formats | 3 | 0 | ○ Not Started |
 | Events | 10 | 0 | ○ Not Started |
 | Interests | 3 | 0 | ○ Not Started |
 | Tickets & Purchases | 2 | 0 | ○ Not Started |
 | Hosts & Following | 2 | 0 | ○ Not Started |
 | Calendar | 2 | 0 | ○ Not Started |
-| User Profile & Settings | 6 | 0 | ○ Not Started |
+| User Profile & Settings | 6 | 1 | ⚡ In Progress |
 | Organizer Event Mgmt | 1 | 0 | ○ Not Started |
 | Location Autocomplete | 1 | 0 | ○ Not Started |
 | **Total** | **36** | **5** | **14% complete** |

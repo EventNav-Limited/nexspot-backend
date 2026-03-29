@@ -1,37 +1,47 @@
+import * as bcrypt from 'bcrypt';
 import { Injectable } from '@nestjs/common';
-import { Prisma, Users } from '../generated/prisma/client.js';
-import { PrismaService } from '../config/prisma.service.js';
+import { UnauthorizedException } from '../lib/error.lib.js';
+import { ChangePasswordDto } from './dto/change-password.dto.js';
+import { UsersHelper } from './users.helper.js';
 
 @Injectable()
 export class UsersService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private usersHelper: UsersHelper) {}
 
-  create(data: Prisma.UsersCreateInput): Promise<Omit<Users, 'password'>> {
-    return this.prisma.users.create({ data });
+  // ─── user-details ──────────────────────────────────────────────────────────────
+
+  async userProfile(email: string) {
+    const user = await this.usersHelper.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    return user;
   }
 
-  findAll(): Promise<Omit<Users, 'password'>[]> {
-    return this.prisma.users.findMany();
-  }
+  // ─── change-password ──────────────────────────────────────────────────────────────
 
-  findByEmail(email: string) {
-    return this.prisma.users.findUnique({
-      where: { email },
+  async changePassword(dto: ChangePasswordDto, email: string) {
+    const user = await this.usersHelper.findByEmail(email);
+    if (!user) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // Compare passwords
+    const isMatch = await bcrypt.compare(dto.oldPassword, user.password);
+    if (!isMatch) {
+      throw new UnauthorizedException('Invalid password');
+    }
+
+    const salt = await bcrypt.genSalt(12);
+    const hashedPassword = await bcrypt.hash(dto.password, salt);
+
+    await this.usersHelper.update(user.id, {
+      password: hashedPassword,
     });
-  }
 
-  findById(id: string) {
-    return this.prisma.users.findUnique({
-      where: { id },
-    });
-  }
-
-  update(id: string, data: Prisma.UsersUpdateInput) {
-    return this.prisma.users.update({
-      where: {
-        id, // Must be a unique field
-      },
-      data,
-    });
+    return {
+      message:
+        'Password has been reset. You can now log in with your new password.',
+    };
   }
 }

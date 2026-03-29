@@ -11,8 +11,8 @@ import { AuthService } from './auth.service.js';
 import { RegisterDto } from './dto/register.dto.js';
 import type { Response, Request } from 'express';
 import { JwtAuthGuard } from './guard/jwt-auth.guard.js';
-import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { successResponse } from '../lib/response.lib.js';
+import { LoginDto } from './dto/login.dto.js';
 
 const REFRESH_COOKIE = 'refresh_token';
 const DEVICE_COOKIE = 'device_id';
@@ -56,7 +56,7 @@ export class AuthController {
 
   @Post('login')
   async login(
-    @Body() dto: RegisterDto,
+    @Body() dto: LoginDto,
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
@@ -79,7 +79,8 @@ export class AuthController {
     return successResponse(data);
   }
 
-  // auth.controller.ts
+  // ─── refresh ──────────────────────────────────────────────────────────────
+
   @Post('refresh')
   async refresh(@Req() req: Request) {
     const refresh_token = req.cookies?.refresh_token; // ← was 'refreshToken', cookie is set as 'refresh_token'
@@ -93,14 +94,8 @@ export class AuthController {
     return successResponse(access_token);
   }
 
-  @Post('change-password')
-  @UseGuards(JwtAuthGuard)
-  async changePassword(@Req() req, @Body() dto: ChangePasswordDto) {
-    const data = await this.authService.changePassword(dto, req.user.email);
-    return successResponse(data);
-  }
+  // ─── logout ──────────────────────────────────────────────────────────────
 
-  // auth.controller.ts
   @Post('logout')
   @UseGuards(JwtAuthGuard)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
