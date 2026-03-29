@@ -2,10 +2,9 @@ import * as bcrypt from 'bcrypt';
 import { JwtService } from '@nestjs/jwt';
 import { Injectable } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto.js';
-import { UsersService } from '../users/users.service.js';
+import { UsersHelper } from '../users/users.helper.js';
 import { LoginDto } from './dto/login.dto.js';
 // import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
-import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { TokenService } from './token.service.js';
 import { env } from '../config/env.js';
 import { ConflictException, UnauthorizedException } from '../lib/error.lib.js';
@@ -14,12 +13,15 @@ import { ConflictException, UnauthorizedException } from '../lib/error.lib.js';
 export class AuthService {
   constructor(
     private jwtService: JwtService,
-    private usersService: UsersService,
+    private usersHelper: UsersHelper,
     private tokenService: TokenService,
   ) {}
+
+  // ─── register ──────────────────────────────────────────────────────────────
+
   async register(dto: RegisterDto) {
     // 1. Check if user already exists
-    const userExists = await this.usersService.findByEmail(dto.email);
+    const userExists = await this.usersHelper.findByEmail(dto.email);
     if (userExists)
       throw new ConflictException('An account with this email already exists');
 
@@ -29,8 +31,8 @@ export class AuthService {
     const fullName = `${dto.firstName.trim()} ${dto.lastName.trim()}`;
 
     // 3. Create the new user
-    const newUser = await this.usersService.create({
-      email: dto.email,
+    const newUser = await this.usersHelper.create({
+      email: dto.email.toLowerCase(),
       password: hashedPassword,
       name: fullName,
     });
@@ -77,9 +79,11 @@ export class AuthService {
     };
   }
 
+  // ─── login ──────────────────────────────────────────────────────────────
+
   async login(dto: LoginDto, device_id: string) {
     // 1. Find user by email
-    const user = await this.usersService.findByEmail(dto.email);
+    const user = await this.usersHelper.findByEmail(dto.email.toLowerCase());
     if (!user) {
       throw new UnauthorizedException('Invalid Email Or Password');
     }
@@ -130,7 +134,8 @@ export class AuthService {
     };
   }
 
-  // auth.service.ts
+  // ─── refresh ──────────────────────────────────────────────────────────────
+
   async refresh(refresh_token: string) {
     // 1. Verify signature & expiry
     let payload: { sub: string; device_id: string };
@@ -142,7 +147,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid or expired refresh token');
     }
 
-    const user = await this.usersService.findById(payload.sub);
+    const user = await this.usersHelper.findById(payload.sub);
     if (!user) throw new UnauthorizedException('User no longer exists');
 
     // 2. Find session
@@ -171,7 +176,7 @@ export class AuthService {
 
   // // // To be implementes when mail service is decided
   // // async forgotPassword(dto: ForgotPasswordDto) {
-  // //   const user = await this.usersService.findByEmail(dto.email);
+  // //   const user = await this.usersHelper.findByEmail(dto.email);
   // //   if (!user) {
   // //     throw new NotFoundException('Email not found');
   // //   }
@@ -182,7 +187,7 @@ export class AuthService {
   // //   const salt = await bcrypt.genSalt(12);
   // //   const hashedPassword = await bcrypt.hash(dto.password, salt);
 
-  // //   await this.usersService.update(user.id, {
+  // //   await this.usersHelper.update(user.id, {
   // //     password: hashedPassword,
   // //   });
 
@@ -192,32 +197,8 @@ export class AuthService {
   // //   };
   // // }
 
-  async changePassword(dto: ChangePasswordDto, email: string) {
-    const user = await this.usersService.findByEmail(email);
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+  // ─── logout ──────────────────────────────────────────────────────────────
 
-    // Compare passwords
-    const isMatch = await bcrypt.compare(dto.oldPassword, user.password);
-    if (!isMatch) {
-      throw new UnauthorizedException('Invalid password');
-    }
-
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(dto.password, salt);
-
-    await this.usersService.update(user.id, {
-      password: hashedPassword,
-    });
-
-    return {
-      message:
-        'Password has been reset. You can now log in with your new password.',
-    };
-  }
-
-  // auth.service.ts
   async logout(refresh_token: string) {
     // Verify just to extract device_id — ignore expiry,
     // an expired token should still be able to log out
@@ -231,9 +212,6 @@ export class AuthService {
       // Malformed token — nothing to delete, just return
       return;
     }
-
-    console.log('logout payload:', payload);
-
     return this.tokenService.deleteSession(payload.device_id);
   }
 }

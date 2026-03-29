@@ -24,31 +24,47 @@ enum Role {
 
 /// Application user account (base entity for everyone: admin, attendee, organizer)
 model Users {
-  id                        String    @id@default(uuid()) // UUID primary key, globally unique
-  name                      String 
-  email                     String    @unique // Login credential + unique constraint
-  password                  String  // Hashed password
-  role                      Role      @default(ATTENDEE)
+  id              String @id @default(uuid()) // UUID primary key, globally unique
+  firstName       String @map("first_name")
+  lastName        String @map("last_name")
+  email           String @unique // Login credential + unique constraint
+  password        String // Hashed password
+  role            Role   @default(ATTENDEE)
+  profilePhotoURL String @map("profile_photo_url")
 
-  created_at                DateTime  @default(now())
-  updated_at                DateTime  @updatedAt
-  isActive                  Boolean   @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("Updated_at")
+  isActive  Boolean  @default(true) @map("is_active")
 
-  session Session[] // Optional 1-1 relation
+  session Session[]
+  contact Contact? // Optional 1-1 relation
 
   @@map("users")
 }
 
-model Session {
-  id                        String    @default(uuid())
-  user_id                   String    
-  device_id                 String    @unique
-  token_hash                String
-  created_at                DateTime  @default(now())
-  updated_at                DateTime  @updatedAt
-  expiresAt                 DateTime
+model Contact {
+  id          String @id @default(uuid())
+  userId      String @unique @map("user_id")
+  phoneNumber String @unique @map("phone_number")
 
-  user                      Users     @relation(fields: [user_id], references: [id], onDelete: Cascade) // Relation to User (one-to-one), Foreign key with cascadeing delete: deleting a User deletes their Refresh Token
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("Updated_at")
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("contact")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  deviceId  String   @unique @map("device_id")
+  tokenHash String   @map("token_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  expiresAt DateTime @map("expires_at")
+
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade) // Relation to User (one-to-one), Foreign key with cascadeing delete: deleting a User deletes their Refresh Token
 
   @@index([expiresAt])
   @@map("session")
