@@ -28,32 +28,34 @@ export class AuthService {
     // 2. Hash the password (using 10 salt rounds)
     const hashedPassword = await bcrypt.hash(dto.password, 12);
 
-    const fullName = `${dto.firstName.trim()} ${dto.lastName.trim()}`;
-
     // 3. Create the new user
     const newUser = await this.usersHelper.create({
       email: dto.email.toLowerCase(),
       password: hashedPassword,
-      name: fullName,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      profilePhotoURL:
+        dto.profilePhotoURL ||
+        `https://ui-avatars.com/api/?name=${dto.firstName}+${dto.lastName}`,
     });
 
     const access_token = this.tokenService.generateAccessToken(newUser.id);
 
-    const device_id = crypto.randomUUID();
+    const deviceId = crypto.randomUUID();
 
     const refresh_token = this.tokenService.generateRefreshToken(
       newUser.id,
-      device_id,
+      deviceId,
     );
 
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     const salt = await bcrypt.genSalt(12);
-    const token_hash = await bcrypt.hash(refresh_token, salt);
+    const tokenHash = await bcrypt.hash(refresh_token, salt);
 
     const newSession = this.tokenService.createSession({
-      device_id,
-      token_hash,
+      deviceId,
+      tokenHash,
       user: {
         connect: { id: newUser.id },
       },
@@ -63,7 +65,7 @@ export class AuthService {
     // 4. Return JWT (optional: some APIs require manual login after register)
     return {
       refresh_token,
-      device_id: (await newSession).device_id,
+      device_id: (await newSession).deviceId,
       payload: {
         user: {
           id: newUser.id,
@@ -71,8 +73,8 @@ export class AuthService {
           last_name: dto.lastName,
           email: newUser.email,
           role: newUser.role,
-          profile_photo_url: `https://ui-avatars.com/api/?name=${dto.firstName}+${dto.lastName}`,
-          created_at: newUser.created_at,
+          profile_photo_url: newUser.profilePhotoURL,
+          created_at: newUser.createdAt,
         },
         access_token,
       },
@@ -81,14 +83,12 @@ export class AuthService {
 
   // ─── login ──────────────────────────────────────────────────────────────
 
-  async login(dto: LoginDto, device_id: string) {
+  async login(dto: LoginDto, deviceId: string) {
     // 1. Find user by email
     const user = await this.usersHelper.findByEmail(dto.email.toLowerCase());
     if (!user) {
       throw new UnauthorizedException('Invalid Email Or Password');
     }
-
-    const name = user.name.split(/\s+/);
 
     // 2. Compare passwords
     const isMatch = await bcrypt.compare(dto.password, user.password);
@@ -99,17 +99,17 @@ export class AuthService {
     const access_token = this.tokenService.generateAccessToken(user.id);
     const refresh_token = this.tokenService.generateRefreshToken(
       user.id,
-      device_id,
+      deviceId,
     );
 
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
     const salt = await bcrypt.genSalt(12);
-    const token_hash = await bcrypt.hash(refresh_token, salt);
+    const tokenHash = await bcrypt.hash(refresh_token, salt);
 
     await this.tokenService.updateSession({
-      device_id,
-      token_hash,
+      deviceId,
+      tokenHash,
       user: {
         connect: { id: user.id },
       },
@@ -122,12 +122,12 @@ export class AuthService {
       payload: {
         user: {
           id: user.id,
-          first_name: name[0],
-          last_name: name[1],
+          first_name: user.firstName,
+          last_name: user.lastName,
           email: user.email,
           role: user.role,
-          profile_photo_url: `https://ui-avatars.com/api/?name=${name[0]}+${name[1]}`,
-          created_at: user.created_at,
+          profile_photo_url: `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}`,
+          created_at: user.createdAt,
         },
         access_token,
       },
@@ -163,13 +163,13 @@ export class AuthService {
     }
 
     // 4. Validate token hash
-    const valid = await bcrypt.compare(refresh_token, session.token_hash);
+    const valid = await bcrypt.compare(refresh_token, session.tokenHash);
     if (!valid) {
       throw new UnauthorizedException('Refresh token reuse detected');
     }
 
     // 5. Issue new access token
-    const access_token = this.tokenService.generateAccessToken(session.user_id);
+    const access_token = this.tokenService.generateAccessToken(session.userId);
 
     return { access_token };
   }
@@ -200,9 +200,9 @@ export class AuthService {
   // ─── logout ──────────────────────────────────────────────────────────────
 
   async logout(refresh_token: string) {
-    // Verify just to extract device_id — ignore expiry,
+    // Verify just to extract deviceId — ignore expiry,
     // an expired token should still be able to log out
-    let payload: { sub: string; device_id: string };
+    let payload: { sub: string; deviceId: string };
     try {
       payload = await this.jwtService.verify(refresh_token, {
         secret: env.REFRESH_SECRET,
@@ -212,6 +212,6 @@ export class AuthService {
       // Malformed token — nothing to delete, just return
       return;
     }
-    return this.tokenService.deleteSession(payload.device_id);
+    return this.tokenService.deleteSession(payload.deviceId);
   }
 }

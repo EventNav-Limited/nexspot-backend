@@ -40,26 +40,26 @@ export class TokenService {
   updateSession(data: Prisma.SessionCreateInput) {
     return this.prisma.session.upsert({
       where: {
-        device_id: data.device_id,
+        deviceId: data.deviceId,
       },
       update: {
-        token_hash: data.token_hash,
+        tokenHash: data.tokenHash,
         expiresAt: data.expiresAt,
       },
       create: data,
     });
   }
 
-  findSession(device_id: string) {
+  findSession(deviceId: string) {
     return this.prisma.session.findUnique({
-      where: { device_id },
+      where: { deviceId },
     });
   }
 
-  deleteSession(device_id: string) {
+  deleteSession(deviceId: string) {
     return this.prisma.session.delete({
       where: {
-        device_id,
+        deviceId,
       },
     });
   }
