@@ -47,6 +47,8 @@ model Contact {
   userId      String @unique @map("user_id")
   phoneNumber String @unique @map("phone_number")
 
+  // nore things to be added as they come up
+
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("Updated_at")
 
