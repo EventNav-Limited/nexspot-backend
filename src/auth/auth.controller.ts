@@ -18,9 +18,9 @@ const REFRESH_COOKIE = 'refresh_token';
 const DEVICE_COOKIE = 'device_id';
 
 const refreshCookieOptions = {
-  httpOnly: true, // JS cannot read it
-  secure: true, // HTTPS only
-  sameSite: 'strict' as const,
+  httpOnly: false, // JS cannot read it
+  secure: false, // HTTPS only
+  sameSite: 'lax' as const,
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
   path: '/auth', // only sent to /auth/* routes
 };
@@ -106,8 +106,8 @@ export class AuthController {
     }
     await this.authService.logout(refresh_token);
 
-    res.clearCookie(REFRESH_COOKIE, { httpOnly: true, sameSite: 'strict' });
-    res.clearCookie(DEVICE_COOKIE, { sameSite: 'lax' });
+    res.clearCookie(REFRESH_COOKIE, refreshCookieOptions);
+    res.clearCookie(DEVICE_COOKIE, deviceCookieOptions);
 
     return successResponse(null);
   }

@@ -202,16 +202,17 @@ export class AuthService {
   async logout(refresh_token: string) {
     // Verify just to extract deviceId — ignore expiry,
     // an expired token should still be able to log out
-    let payload: { sub: string; deviceId: string };
+    let payload: { sub: string; device_id: string };
     try {
       payload = await this.jwtService.verify(refresh_token, {
         secret: env.REFRESH_SECRET,
         ignoreExpiration: true, // ← key difference from refresh
       });
+      console.log(payload);
     } catch {
       // Malformed token — nothing to delete, just return
       return;
     }
-    return this.tokenService.deleteSession(payload.deviceId);
+    return this.tokenService.deleteSession(payload.device_id);
   }
 }

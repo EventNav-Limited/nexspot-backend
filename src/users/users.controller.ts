@@ -5,11 +5,11 @@ import { successResponse } from '../lib/response.lib.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 
 @Controller('me')
+@UseGuards(JwtAuthGuard)
 export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard)
   async userPeofile(@Req() req) {
     const data = await this.usersService.userProfile(req.user.email);
     return successResponse(data);
@@ -17,8 +17,7 @@ export class UsersController {
 
   // ─── change-password ──────────────────────────────────────────────────────────────
 
-  @Put('password')
-  @UseGuards(JwtAuthGuard)
+  @Put('change-password')
   async changePassword(@Req() req, @Body() dto: ChangePasswordDto) {
     const data = await this.usersService.changePassword(dto, req.user.email);
     return successResponse(data);
