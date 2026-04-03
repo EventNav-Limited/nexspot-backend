@@ -32,8 +32,8 @@ model Users {
   role            Role   @default(ATTENDEE)
   profilePhotoURL String @map("profile_photo_url")
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("Updated_at")
+  createdAt DateTime @default(now()) @map("created_at") // TimeStamps
+  updatedAt DateTime @updatedAt @map("Updated_at") // TimeStamps
   isActive  Boolean  @default(true) @map("is_active")
 
   session Session[]
@@ -49,10 +49,10 @@ model Contact {
 
   // nore things to be added as they come up
 
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("Updated_at")
+  createdAt DateTime @default(now()) @map("created_at") // TimeStamps
+  updatedAt DateTime @updatedAt @map("Updated_at") // TimeStamps
 
-  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade) // 1-1 with users, onDelete: Cascade, making it such that upon deleting the parent, the child is also deleted, leaving no orphan entries
 
   @@map("contact")
 }
@@ -62,9 +62,9 @@ model Session {
   userId    String   @map("user_id")
   deviceId  String   @unique @map("device_id")
   tokenHash String   @map("token_hash")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at") // TimeStamps
+  updatedAt DateTime @updatedAt @map("updated_at") // TimeStamps
+  expiresAt DateTime @map("expires_at") // TimeStamps
 
   user Users @relation(fields: [userId], references: [id], onDelete: Cascade) // Relation to User (one-to-one), Foreign key with cascadeing delete: deleting a User deletes their Refresh Token
 
@@ -77,8 +77,8 @@ model Categories {
   name      String   @unique
   slug      String   @unique
   iconURL   String   @map("icon_url")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") // TimeStamps
+  updatedAt DateTime @updatedAt @map("updated_at") // TimeStamps
 
   event Events[]
 
@@ -89,10 +89,10 @@ model Events {
   id        String   @id @default(uuid())
   title     String
   slug      String
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
+  createdAt DateTime @default(now()) @map("created_at") // TimeStamps
+  updatedAt DateTime @updatedAt @map("updated_at") // TimeStamps
 
   categoryId String @map("category_id")
 
-  categories Categories @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categories Categories @relation(fields: [categoryId], references: [id], onDelete: Cascade) // 1-1 with Categories, onDelete: Cascade, making it such that upon deleting the parent, the child is also deleted, leaving no orphan entries
 }
