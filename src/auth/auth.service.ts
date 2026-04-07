@@ -4,10 +4,15 @@ import { Injectable } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto.js';
 import { UsersHelper } from '../users/users.helper.js';
 import { LoginDto } from './dto/login.dto.js';
-// import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { TokenService } from './token.service.js';
 import { env } from '../config/env.js';
-import { ConflictException, UnauthorizedException } from '../lib/error.lib.js';
+import {
+  BadRequestException,
+  ConflictException,
+  UnauthorizedException,
+} from '../lib/error.lib.js';
+import { EmailVerificationLib } from '../lib/email-verification.lib.js';
 
 @Injectable()
 export class AuthService {
@@ -15,6 +20,7 @@ export class AuthService {
     private jwtService: JwtService,
     private usersHelper: UsersHelper,
     private tokenService: TokenService,
+    private emailVerificationLib: EmailVerificationLib,
   ) {}
 
   // ─── register ──────────────────────────────────────────────────────────────
@@ -61,6 +67,11 @@ export class AuthService {
       },
       expiresAt: expiry,
     });
+
+    await this.emailVerificationLib.sendRegistrationVerification(
+      newUser.email,
+      newUser.firstName,
+    );
 
     // 4. Return JWT (optional: some APIs require manual login after register)
     return {
@@ -174,28 +185,28 @@ export class AuthService {
     return { access_token };
   }
 
-  // // // To be implementes when mail service is decided
-  // // async forgotPassword(dto: ForgotPasswordDto) {
-  // //   const user = await this.usersHelper.findByEmail(dto.email);
-  // //   if (!user) {
-  // //     throw new NotFoundException('Email not found');
-  // //   }
+  // ─── forgot-password ──────────────────────────────────────────────────────────────
 
-  // //   // TODO: send email with reset link (e.g. https://yourapp.com/reset-password?token=...)
-  // //   // For now we return the token in dev only so you can test; remove in production.
+  // To be implementes when mail service is decided
+  async forgotPassword(dto: ForgotPasswordDto) {
+    const user = await this.usersHelper.findByEmail(dto.email);
+    if (!user) return;
 
-  // //   const salt = await bcrypt.genSalt(12);
-  // //   const hashedPassword = await bcrypt.hash(dto.password, salt);
+    await this.emailVerificationLib.sendForgotPasswordEmail(dto.email, user.id);
+  }
 
-  // //   await this.usersHelper.update(user.id, {
-  // //     password: hashedPassword,
-  // //   });
+  // ─── reset-password ──────────────────────────────────────────────────────────────
 
-  // //   return {
-  // //     message:
-  // //       'Password has been reset. You can now log in with your new password.',
-  // //   };
-  // // }
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const { userId, purpose } = this.emailVerificationLib.verifyToken(token);
+
+    if (purpose !== 'forgot-password') {
+      throw new BadRequestException('Invalid token purpose');
+    }
+
+    const hash = await bcrypt.hash(newPassword, 12);
+    await this.usersHelper.update(userId, { password: hash });
+  }
 
   // ─── logout ──────────────────────────────────────────────────────────────
 

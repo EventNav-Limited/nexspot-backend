@@ -11,11 +11,16 @@ export class CategoriesHelper {
   }
 
   findAll() {
-    return this.prisma.categories.findMany();
+    return this.prisma.categories.findMany({
+      include: { _count: { select: { event: true } } },
+    });
   }
 
   findById(id: string) {
-    return this.prisma.categories.findUnique({ where: { id } });
+    return this.prisma.categories.findUnique({
+      where: { id },
+      include: { _count: { select: { event: true } } },
+    });
   }
 
   findBySlug(slug: string) {
@@ -25,6 +30,7 @@ export class CategoriesHelper {
   findOne(where: Prisma.CategoriesWhereUniqueInput) {
     return this.prisma.categories.findUnique({
       where,
+      include: { _count: { select: { event: true } } },
     });
   }
 

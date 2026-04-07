@@ -1,48 +1,44 @@
-import 'dotenv/config'; // Required if running with tsx/node directly
+// src/config/env.ts
 
-interface EnvConfig {
-  DATABASE_URL: string;
-  REFRESH_SECRET: string;
-  REFRESH_EXPIRES_IN;
-  ACCESS_SECRET: string;
-  ACCESS_EXPIRES_IN;
-  PORT: number;
-  NODE_ENV: string;
-  PASSWORD_RESET_EXPIRY_MINUTES: number;
-  // EMAIL_SERVICE: string;
-  // EMAIL_HOST: string;
-  // EMAIL_PORT: number;
-  // EMAIL_USER: string;
-  // EMAIL_PASSWORD: string;
-  // EMAIL_FROM: string;
-  // OTP_EXPIRY_MINUTES: number;
+import 'dotenv/config';
+import { z } from 'zod';
+import type { StringValue } from 'ms';
+
+const schema = z.object({
+  DATABASE_URL: z.string().url(),
+  REFRESH_SECRET: z.string(),
+  REFRESH_EXPIRES_IN: z
+    .string()
+    .default('7d')
+    .transform((v) => v as StringValue),
+  ACCESS_SECRET: z.string(),
+  ACCESS_EXPIRES_IN: z
+    .string()
+    .default('15m')
+    .transform((v) => v as StringValue),
+  PORT: z.coerce.number().default(3000),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
+  PASSWORD_RESET_EXPIRY_MINUTES: z.coerce.number().default(60),
+  EMAIL_VERIFICATION_SECRET: z.string(),
+  FRONTEND_URL: z.string(), //.url(),
+  MAIL_HOST: z.string(),
+  MAIL_PORT: z.coerce.number().default(587),
+  MAIL_SECURE: z.coerce.boolean().default(false),
+  MAIL_USER: z.string(),
+  MAIL_PASS: z.string(),
+  MAIL_FROM: z.string().email(),
+  MAIL_FROM_NAME: z.string().default('App'),
+});
+
+const parsed = schema.safeParse(process.env);
+
+if (!parsed.success) {
+  console.error('❌ Invalid environment variables:');
+  parsed.error.issues.forEach((issue) => {
+    console.error(`   ${issue.path.join('.')}: ${issue.message}`);
+  });
+  process.exit(1);
 }
 
-const getEnvVar = (key: string, defaultValue?: string): string => {
-  const value = process.env[key] || defaultValue;
-  if (!value) {
-    throw new Error(`Environment variable ${key} is not set`);
-  }
-  return value;
-};
-
-export const env: EnvConfig = {
-  DATABASE_URL: getEnvVar('DATABASE_URL'),
-  REFRESH_SECRET: getEnvVar('REFRESH_SECRET'),
-  REFRESH_EXPIRES_IN: getEnvVar('REFRESH_EXPIRES_IN'),
-  ACCESS_SECRET: getEnvVar('ACCESS_SECRET'),
-  ACCESS_EXPIRES_IN: getEnvVar('ACCESS_EXPIRES_IN'),
-  PORT: parseInt(getEnvVar('PORT', '3000'), 10),
-  NODE_ENV: getEnvVar('NODE_ENV', 'PRODUCTION'),
-  PASSWORD_RESET_EXPIRY_MINUTES: parseInt(
-    getEnvVar('PASSWORD_RESET_EXPIRY_MINUTES', '60'),
-    10,
-  ),
-  // EMAIL_SERVICE: getEnvVar('EMAIL_SERVICE', 'smtp'),
-  // EMAIL_HOST: getEnvVar('EMAIL_HOST'),
-  // EMAIL_PORT: parseInt(getEnvVar('EMAIL_PORT', '587'), 10),
-  // EMAIL_USER: getEnvVar('EMAIL_USER'),
-  // EMAIL_PASSWORD: getEnvVar('EMAIL_PASSWORD'),
-  // EMAIL_FROM: getEnvVar('EMAIL_FROM'),
-  // OTP_EXPIRY_MINUTES: parseInt(getEnvVar('OTP_EXPIRY_MINUTES', '10'), 10),
-};
+export const env = parsed.data;
+export type Env = z.infer<typeof schema>;
