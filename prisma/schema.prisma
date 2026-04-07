@@ -71,3 +71,28 @@ model Session {
   @@index([expiresAt])
   @@map("session")
 }
+
+model Categories {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  slug      String   @unique
+  iconURL   String   @map("icon_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  event Events[]
+
+  @@map("categories")
+}
+
+model Events {
+  id        String   @id @default(uuid())
+  title     String
+  slug      String
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  categoryId String @map("category_id")
+
+  categories Categories @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+}

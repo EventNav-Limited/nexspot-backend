@@ -7,7 +7,7 @@ import {
   HttpException,
   HttpStatus,
   Logger,
-  BadRequestException,
+  BadRequestException as NestBadRequestException,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { errorResponse } from './response.lib.js';
@@ -56,6 +56,17 @@ export class ValidationException extends AppException {
     super(
       ERROR_CODES.VALIDATION_ERROR,
       'Validation failed',
+      HttpStatus.BAD_REQUEST,
+      details,
+    );
+  }
+}
+
+export class BadRequestException extends AppException {
+  constructor(message: string, details?: { field: string; message: string }[]) {
+    super(
+      ERROR_CODES.VALIDATION_ERROR,
+      message,
       HttpStatus.BAD_REQUEST,
       details,
     );
@@ -150,7 +161,7 @@ export class GlobalExceptionFilter implements ExceptionFilter {
 
       // class-validator errors come as { message: string[] }
       if (
-        exception instanceof BadRequestException &&
+        exception instanceof NestBadRequestException &&
         typeof body === 'object'
       ) {
         const raw = body as { message: string | string[] };
