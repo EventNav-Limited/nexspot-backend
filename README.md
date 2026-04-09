@@ -6,9 +6,9 @@
 
 > **Status:** Auth module 4/6 complete. `forgot-password` and `reset-password` are pending mail service setup.
 
----
+--- 
 
-## Endpoint Summary
+## auth Endpoint Summary
 
 | Method | Endpoint | Auth | Status |
 |--------|----------|------|--------|
