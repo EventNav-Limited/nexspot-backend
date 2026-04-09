@@ -1,18 +1,22 @@
 import {
   Body,
   Controller,
+  Get,
   Post,
   Req,
   Res,
   UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
+import { env } from '../config/env.js';
+import { LoginDto } from './dto/login.dto.js';
 import { AuthService } from './auth.service.js';
-import { RegisterDto } from './dto/register.dto.js';
 import type { Response, Request } from 'express';
+import { RegisterDto } from './dto/register.dto.js';
 import { JwtAuthGuard } from './guard/jwt-auth.guard.js';
 import { successResponse } from '../lib/response.lib.js';
-import { LoginDto } from './dto/login.dto.js';
+import { GoogleAuthGuard } from './guard/google-auth.guard.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 
 const REFRESH_COOKIE = 'refresh_token';
 const DEVICE_COOKIE = 'device_id';
@@ -77,6 +81,45 @@ export class AuthController {
     res.cookie(DEVICE_COOKIE, device_id, deviceCookieOptions);
 
     return successResponse(data);
+  }
+
+  // ─── Google OAuth ──────────────────────────────────────────────────────────
+
+  @Get('google')
+  @UseGuards(GoogleAuthGuard)
+  async googleAuth() {
+    // Guard redirects to Google automatically, nothing to do here
+  }
+
+  @Get('google/callback')
+  @UseGuards(GoogleAuthGuard)
+  async googleCallback(@Req() req: Request, @Res() res: Response) {
+    const { refresh_token, device_id, ...data } =
+      await this.authService.googleLogin(req.user as any);
+
+    res.cookie(DEVICE_COOKIE, device_id, deviceCookieOptions);
+    res.cookie(REFRESH_COOKIE, refresh_token, refreshCookieOptions);
+
+    // Redirect to frontend with access token in query param
+    return res.redirect(
+      `${env.FRONTEND_URL}?access_token=${data.payload.access_token}`,
+    );
+  }
+
+  // ─── forgot-password ──────────────────────────────────────────────────────────────
+
+  @Post('forgot-password')
+  async forgotPassword(dto: ForgotPasswordDto) {
+    await this.authService.forgotPassword(dto.email!);
+    return successResponse(null);
+  }
+
+  // ─── reset-password ──────────────────────────────────────────────────────────────
+
+  @Post('reset-password')
+  async resetPassword(token: string, dto: ForgotPasswordDto) {
+    await this.authService.resetPassword(token, dto.password!);
+    return successResponse(null);
   }
 
   // ─── refresh ──────────────────────────────────────────────────────────────

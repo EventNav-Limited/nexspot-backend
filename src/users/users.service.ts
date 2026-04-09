@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { UnauthorizedException } from '../lib/error.lib.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { UsersHelper } from './users.helper.js';
+import { Users } from '../generated/prisma/client.js';
 
 @Injectable()
 export class UsersService {
@@ -10,7 +11,7 @@ export class UsersService {
 
   // ─── user-details ──────────────────────────────────────────────────────────────
 
-  async userProfile(email: string) {
+  async userProfile(email: string): Promise<Omit<Users, 'password'>> {
     const user = await this.usersHelper.findByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -24,6 +25,12 @@ export class UsersService {
     const user = await this.usersHelper.findByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.password) {
+      throw new UnauthorizedException(
+        'This account uses Google sign-in. Please login with Google.',
+      );
     }
 
     // Compare passwords

@@ -4,7 +4,6 @@ import { Injectable } from '@nestjs/common';
 import { RegisterDto } from './dto/register.dto.js';
 import { UsersHelper } from '../users/users.helper.js';
 import { LoginDto } from './dto/login.dto.js';
-import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 import { TokenService } from './token.service.js';
 import { env } from '../config/env.js';
 import {
@@ -101,8 +100,22 @@ export class AuthService {
       throw new UnauthorizedException('Invalid Email Or Password');
     }
 
+    // After finding the user
+    if (user.authProvider === 'GOOGLE') {
+      throw new UnauthorizedException(
+        'This account uses Google sign-in. Please login with Google.',
+      );
+    }
+
+    if (!user.password) {
+      throw new UnauthorizedException(
+        'This account uses Google sign-in. Please login with Google.',
+      );
+    }
+
     // 2. Compare passwords
     const isMatch = await bcrypt.compare(dto.password, user.password);
+
     if (!isMatch) {
       throw new UnauthorizedException('Invalid Email Or Password');
     }
@@ -138,6 +151,74 @@ export class AuthService {
           email: user.email,
           role: user.role,
           profile_photo_url: `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}`,
+          created_at: user.createdAt,
+        },
+        access_token,
+      },
+    };
+  }
+
+  // ─── google-login ──────────────────────────────────────────────────────────────
+  async googleLogin(googleUser: {
+    googleId: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    picture: string;
+  }) {
+    // 1. Check if user exists by googleId
+    let user = await this.usersHelper.findByGoogleId(googleUser.googleId);
+
+    // 2. If not, check if email already exists as a LOCAL account
+    if (!user) {
+      const existingUser = await this.usersHelper.findByEmail(googleUser.email);
+      if (existingUser) {
+        throw new ConflictException(
+          'An account with this email already exists. Please login with your password.',
+        );
+      }
+
+      // 3. Create new Google user
+      user = await this.usersHelper.create({
+        email: googleUser.email.toLowerCase(),
+        firstName: googleUser.firstName,
+        lastName: googleUser.lastName,
+        profilePhotoURL: googleUser.picture,
+        googleId: googleUser.googleId,
+        authProvider: 'GOOGLE',
+      });
+    }
+
+    // 4. Generate tokens
+    const deviceId = crypto.randomUUID();
+    const access_token = this.tokenService.generateAccessToken(user.id);
+    const refresh_token = this.tokenService.generateRefreshToken(
+      user.id,
+      deviceId,
+    );
+
+    const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const salt = await bcrypt.genSalt(12);
+    const tokenHash = await bcrypt.hash(refresh_token, salt);
+
+    await this.tokenService.createSession({
+      deviceId,
+      tokenHash,
+      user: { connect: { id: user.id } },
+      expiresAt: expiry,
+    });
+
+    return {
+      refresh_token,
+      device_id: deviceId,
+      payload: {
+        user: {
+          id: user.id,
+          first_name: user.firstName,
+          last_name: user.lastName,
+          email: user.email,
+          role: user.role,
+          profile_photo_url: user.profilePhotoURL,
           created_at: user.createdAt,
         },
         access_token,
@@ -188,11 +269,12 @@ export class AuthService {
   // ─── forgot-password ──────────────────────────────────────────────────────────────
 
   // To be implementes when mail service is decided
-  async forgotPassword(dto: ForgotPasswordDto) {
-    const user = await this.usersHelper.findByEmail(dto.email);
-    if (!user) return;
+  async forgotPassword(dto: string) {
+    if (!dto) throw new BadRequestException('Invalid email');
+    const user = await this.usersHelper.findByEmail(dto);
+    if (!user) throw new BadRequestException('Invalid email');
 
-    await this.emailVerificationLib.sendForgotPasswordEmail(dto.email, user.id);
+    await this.emailVerificationLib.sendForgotPasswordEmail(dto, user.id);
   }
 
   // ─── reset-password ──────────────────────────────────────────────────────────────
@@ -206,6 +288,9 @@ export class AuthService {
 
     const hash = await bcrypt.hash(newPassword, 12);
     await this.usersHelper.update(userId, { password: hash });
+
+    // TODO: Send confirmation email.
+    // content: password has been reset. you can now login with new password
   }
 
   // ─── logout ──────────────────────────────────────────────────────────────
