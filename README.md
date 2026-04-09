@@ -1,24 +1,10 @@
 # Nexspot API
 
 **Stack:** NestJS + Prisma · **Version:** 1.0.0  
-**Base URL:** `{{domain_name}}`  
+**Base URL:** `https://nexspot-backend.vercel.app`  
 **Content-Type:** `application/json`
 
-> **Status:** Auth module 4/6 complete. `forgot-password` and `reset-password` are pending mail service setup.
-
---- 
-
-## auth Endpoint Summary
-
-| Method | Endpoint | Auth | Status |
-|--------|----------|------|--------|
-| `POST` | `/auth/register` | No | ✅ Done |
-| `POST` | `/auth/login` | No | ✅ Done |
-| `POST` | `/auth/logout` | Yes | ✅ Done |
-| `POST` | `/auth/refresh` | No | ✅ Done |
-| `POST` | `/auth/forgot-password` | No | ⏳ Pending (mail service) |
-| `POST` | `/auth/reset-password` | No | ⏳ Pending (mail service) |
-| `PUT` | `/me/change-password` | Yes | ✅ Done |
+> **Status:** Auth module 6/6 complete. `forgot-password` and `reset-password` are pending mail service setup.
 
 ---
 
@@ -51,11 +37,27 @@ Tokens expire after `3600` seconds. Use `POST /auth/refresh` to get a new access
   "error": {
     "code": "ERROR_CODE",
     "message": "Human-readable description",
+    "details": []
   }
 }
 ```
 
 ---
+
+## Endpoint Summary
+
+| Method | Endpoint | Auth | Status |
+|--------|----------|------|--------|
+| `POST` | `/auth/register` | No | ✅ Done |
+| `POST` | `/auth/login` | No | ✅ Done |
+| `POST` | `/auth/logout` | Yes | ✅ Done |
+| `POST` | `/auth/refresh` | No | ✅ Done |
+| `POST` | `/auth/forgot-password` | No | ✅ Done |
+| `POST` | `/auth/reset-password` | No | ✅ Done |
+
+
+---
+
 
 ## Endpoints
 
@@ -97,7 +99,7 @@ Registers a new user account. All new accounts are assigned `role: attendee` by 
 
 | Status | Scenario | Code |
 |--------|----------|------|
-| `400` | Missing or invalid fields | `VALIDATION_ERROR` |
+| `400` | Missing or invalid fields | `VALIDATION_ERROR \| BADREQUEST` |
 | `409` | Email address already registered | `CONFLICT` |
 
 ---
@@ -192,7 +194,7 @@ Obtains a new access token using the refresh token cookie set at login.
 
 ### `POST /auth/forgot-password`
 
-> ⏳ **Pending** — mail service not yet configured.
+> ⏳ **Email** — if email exists in the database, as a registered user.
 
 Sends a password reset link to the provided email address.
 
@@ -208,7 +210,7 @@ Sends a password reset link to the provided email address.
 ```json
 {
   "success": true,
-  "message": "If an account exists with this email, a reset link has been sent."
+  "message": null
 }
 ```
 
@@ -225,8 +227,7 @@ Resets the user's password after verifying authentication startus.
 | Field | Type | Required | Notes |
 |-------|------|----------|-------|
 | `old_password` | `string` | Yes | Must match current password |
-| `new_password` | `string` | Yes | |
-| `confirm_password` | `string` | Yes | Must match `new_password` |
+| `new_password` | `string` | Yes | must me comepared with `confirm password` on the frontend|
 
 **Response `200`**
 ```json
@@ -305,60 +306,18 @@ nexspot-backend/src/
 
 ---
 
-## Prisma — User Model
-
-```prisma
-model Users {
-  id                        String    @id@default(uuid())
-  name                      String 
-  email                     String    @unique
-  password                  String 
-  role                      Role      @default(ATTENDEE)
-
-  created_at                DateTime  @default(now())
-  updated_at                DateTime  @updatedAt
-  isActive                  Boolean   @default(true)
-
-  session Session[]
-
-  @@map("users")
-}
-
-model Session {
-  id                        String    @default(uuid())
-  user_id                   String    
-  device_id                 String    @unique
-  token_hash                String
-  created_at                DateTime  @default(now())
-  updated_at                DateTime  @updatedAt
-  expiresAt                 DateTime
-
-  user                      Users     @relation(fields: [user_id], references: [id], onDelete: Cascade)
-  @@index([expiresAt])
-  @@map("session")
-}
-
-enum Role {
-  ATTENDEE
-  ORGANIZER
-  ADMIN
-}
-```
-
----
-
 ## Overall Module Progress
 
 | Module | Endpoints | Done | Status |
 |--------|-----------|------|--------|
-| Auth | 6 | 4 | ⚡ In Progress |
-| Categories & Formats | 3 | 0 | ○ Not Started |
+| Auth | 6 | 6 | ⚡ In Progress |
+| Categories & Formats | 5 | 5 | ○ Not Started |
 | Events | 10 | 0 | ○ Not Started |
 | Interests | 3 | 0 | ○ Not Started |
 | Tickets & Purchases | 2 | 0 | ○ Not Started |
 | Hosts & Following | 2 | 0 | ○ Not Started |
 | Calendar | 2 | 0 | ○ Not Started |
-| User Profile & Settings | 6 | 1 | ⚡ In Progress |
+| User Profile & Settings | 6 | 2 | ⚡ In Progress |
 | Organizer Event Mgmt | 1 | 0 | ○ Not Started |
 | Location Autocomplete | 1 | 0 | ○ Not Started |
-| **Total** | **36** | **5** | **14% complete** |
+| **Total** | **35** | **13** | **34% complete** |

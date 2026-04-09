@@ -1,7 +1,7 @@
-import { PickType } from '@nestjs/mapped-types';
+import { PartialType, PickType } from '@nestjs/mapped-types';
 import { RegisterDto } from './register.dto.js';
 
 // TODO: fix this DTO
-export class ForgotPasswordDto extends PickType(RegisterDto, [
-  'email',
-] as const) {}
+export class ForgotPasswordDto extends PartialType(
+  PickType(RegisterDto, ['email', 'password'] as const),
+) {}

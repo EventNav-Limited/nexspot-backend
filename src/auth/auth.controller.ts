@@ -13,6 +13,7 @@ import type { Response, Request } from 'express';
 import { JwtAuthGuard } from './guard/jwt-auth.guard.js';
 import { successResponse } from '../lib/response.lib.js';
 import { LoginDto } from './dto/login.dto.js';
+import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
 
 const REFRESH_COOKIE = 'refresh_token';
 const DEVICE_COOKIE = 'device_id';
@@ -77,6 +78,22 @@ export class AuthController {
     res.cookie(DEVICE_COOKIE, device_id, deviceCookieOptions);
 
     return successResponse(data);
+  }
+
+  // ─── forgot-password ──────────────────────────────────────────────────────────────
+
+  @Post('forgot-password')
+  async forgotPassword(dto: ForgotPasswordDto) {
+    await this.authService.forgotPassword(dto.email!);
+    return successResponse(null);
+  }
+
+  // ─── reset-password ──────────────────────────────────────────────────────────────
+
+  @Post('reset-password')
+  async resetPassword(token: string, dto: ForgotPasswordDto) {
+    await this.authService.resetPassword(token, dto.password!);
+    return successResponse(null);
   }
 
   // ─── refresh ──────────────────────────────────────────────────────────────

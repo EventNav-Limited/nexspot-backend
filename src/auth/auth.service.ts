@@ -188,11 +188,12 @@ export class AuthService {
   // ─── forgot-password ──────────────────────────────────────────────────────────────
 
   // To be implementes when mail service is decided
-  async forgotPassword(dto: ForgotPasswordDto) {
-    const user = await this.usersHelper.findByEmail(dto.email);
-    if (!user) return;
+  async forgotPassword(dto: string) {
+    if (!dto) throw new BadRequestException('Invalid email');
+    const user = await this.usersHelper.findByEmail(dto);
+    if (!user) throw new BadRequestException('Invalid email');
 
-    await this.emailVerificationLib.sendForgotPasswordEmail(dto.email, user.id);
+    await this.emailVerificationLib.sendForgotPasswordEmail(dto, user.id);
   }
 
   // ─── reset-password ──────────────────────────────────────────────────────────────
@@ -206,6 +207,9 @@ export class AuthService {
 
     const hash = await bcrypt.hash(newPassword, 12);
     await this.usersHelper.update(userId, { password: hash });
+
+    // TODO: Send confirmation email.
+    // content: password has been reset. you can now login with new password
   }
 
   // ─── logout ──────────────────────────────────────────────────────────────
