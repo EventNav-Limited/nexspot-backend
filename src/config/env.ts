@@ -28,6 +28,9 @@ const schema = z.object({
   MAIL_PASS: z.string(),
   MAIL_FROM: z.string().email(),
   MAIL_FROM_NAME: z.string().default('App'),
+  GOOGLE_CLIENT_ID: z.string(),
+  GOOGLE_CLIENT_SECRET: z.string(),
+  GOOGLE_CALLBACK_URL: z.string().url(),
 });
 
 const parsed = schema.safeParse(process.env);

@@ -18,19 +18,26 @@ enum Role {
   ADMIN
 }
 
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
 // ----------------------
 // MODELS
 // ----------------------
 
 /// Application user account (base entity for everyone: admin, attendee, organizer)
 model Users {
-  id              String @id @default(uuid()) // UUID primary key, globally unique
-  firstName       String @map("first_name")
-  lastName        String @map("last_name")
-  email           String @unique // Login credential + unique constraint
-  password        String // Hashed password
-  role            Role   @default(ATTENDEE)
-  profilePhotoURL String @map("profile_photo_url")
+  id              String       @id @default(uuid()) // UUID primary key, globally unique
+  firstName       String       @map("first_name")
+  lastName        String       @map("last_name")
+  email           String       @unique // Login credential + unique constraint
+  password        String? // Hashed password
+  role            Role         @default(ATTENDEE)
+  profilePhotoURL String       @map("profile_photo_url")
+  authProvider    AuthProvider @default(LOCAL) @map("auth_provider")
+  googleId        String?      @unique @map("google_id")
 
   createdAt DateTime @default(now()) @map("created_at") // TimeStamps
   updatedAt DateTime @updatedAt @map("Updated_at") // TimeStamps
@@ -78,7 +85,6 @@ model Categories {
   slug      String   @unique
   iconURL   String   @map("icon_url")
   createdAt DateTime @default(now()) @map("created_at") // TimeStamps
-  updatedAt DateTime @updatedAt @map("updated_at") // TimeStamps
 
   event Events[]
 

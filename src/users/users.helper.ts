@@ -6,7 +6,7 @@ import { PrismaService } from '../config/prisma.service.js';
 export class UsersHelper {
   constructor(private prisma: PrismaService) {}
 
-  create(data: Prisma.UsersCreateInput): Promise<Omit<Users, 'password'>> {
+  create(data: Prisma.UsersCreateInput): Promise<Users> {
     return this.prisma.users.create({ data });
   }
 
@@ -23,6 +23,12 @@ export class UsersHelper {
   findById(id: string) {
     return this.prisma.users.findUnique({
       where: { id },
+    });
+  }
+
+  findByGoogleId(googleId: string) {
+    return this.prisma.users.findUnique({
+      where: { googleId },
     });
   }
 

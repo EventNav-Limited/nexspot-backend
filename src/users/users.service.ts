@@ -27,6 +27,12 @@ export class UsersService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    if (!user.password) {
+      throw new UnauthorizedException(
+        'This account uses Google sign-in. Please login with Google.',
+      );
+    }
+
     // Compare passwords
     const isMatch = await bcrypt.compare(dto.oldPassword, user.password);
     if (!isMatch) {
