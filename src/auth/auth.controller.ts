@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Post,
+  Query,
   Req,
   Res,
   UnauthorizedException,
@@ -109,7 +110,7 @@ export class AuthController {
   // ─── forgot-password ──────────────────────────────────────────────────────────────
 
   @Post('forgot-password')
-  async forgotPassword(dto: ForgotPasswordDto) {
+  async forgotPassword(@Body() dto: ForgotPasswordDto) {
     await this.authService.forgotPassword(dto.email!);
     return successResponse(null);
   }
@@ -117,7 +118,10 @@ export class AuthController {
   // ─── reset-password ──────────────────────────────────────────────────────────────
 
   @Post('reset-password')
-  async resetPassword(token: string, dto: ForgotPasswordDto) {
+  async resetPassword(
+    @Query('token') token: string,
+    @Body() dto: ForgotPasswordDto,
+  ) {
     await this.authService.resetPassword(token, dto.password!);
     return successResponse(null);
   }
