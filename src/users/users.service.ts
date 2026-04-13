@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { UnauthorizedException } from '../lib/error.lib.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { UsersHelper } from './users.helper.js';
-import { Users } from '../generated/prisma/client.js';
+import { mapUser } from './users.mapper.js';
 
 @Injectable()
 export class UsersService {
@@ -11,12 +11,12 @@ export class UsersService {
 
   // ─── user-details ──────────────────────────────────────────────────────────────
 
-  async userProfile(email: string): Promise<Omit<Users, 'password'>> {
+  async userProfile(email: string) {
     const user = await this.usersHelper.findByEmail(email);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    return user;
+    return mapUser(user);
   }
 
   // ─── change-password ──────────────────────────────────────────────────────────────

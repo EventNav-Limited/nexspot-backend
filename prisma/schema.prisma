@@ -29,37 +29,42 @@ enum AuthProvider {
 
 /// Application user account (base entity for everyone: admin, attendee, organizer)
 model Users {
-  id              String       @id @default(uuid()) // UUID primary key, globally unique
-  firstName       String       @map("first_name")
-  lastName        String       @map("last_name")
-  email           String       @unique // Login credential + unique constraint
-  password        String? // Hashed password
-  role            Role         @default(ATTENDEE)
-  profilePhotoURL String       @map("profile_photo_url")
-  authProvider    AuthProvider @default(LOCAL) @map("auth_provider")
-  googleId        String?      @unique @map("google_id")
+  id                  String       @id @default(uuid()) // UUID primary key, globally unique
+  firstName           String       @map("first_name")
+  lastName            String       @map("last_name")
+  email               String       @unique // Login credential + unique constraint
+  password            String? // Hashed password
+  role                Role         @default(ATTENDEE)
+  profilePhotoURL     String       @map("profile_photo_url")
+  authProvider        AuthProvider @default(LOCAL) @map("auth_provider")
+  googleId            String?      @unique @map("google_id")
+  onboardingCompleted Boolean      @default(false) @map("onboarding_completed") // ← new
 
   createdAt DateTime @default(now()) @map("created_at") // TimeStamps
   updatedAt DateTime @updatedAt @map("Updated_at") // TimeStamps
   isActive  Boolean  @default(true) @map("is_active")
 
-  session Session[]
-  contact Contact? // Optional 1-1 relation
+  session   Session[]
+  contact   Contact? // Optional 1-1 relation
+  interests UserInterest[]
 
   @@map("users")
 }
 
 model Contact {
-  id          String @id @default(uuid())
-  userId      String @unique @map("user_id")
-  phoneNumber String @unique @map("phone_number")
+  id          String  @id @default(uuid())
+  userId      String  @unique @map("user_id")
+  phoneNumber String? @unique @map("phone_number") // ← made optional, location can exist without phone
 
-  // nore things to be added as they come up
+  city      String? @map("city")
+  country   String? @map("country")
+  latitude  Float?  @map("latitude")
+  longitude Float?  @map("longitude")
 
-  createdAt DateTime @default(now()) @map("created_at") // TimeStamps
-  updatedAt DateTime @updatedAt @map("Updated_at") // TimeStamps
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("Updated_at")
 
-  user Users @relation(fields: [userId], references: [id], onDelete: Cascade) // 1-1 with users, onDelete: Cascade, making it such that upon deleting the parent, the child is also deleted, leaving no orphan entries
+  user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("contact")
 }
@@ -101,4 +106,28 @@ model Events {
   categoryId String @map("category_id")
 
   categories Categories @relation(fields: [categoryId], references: [id], onDelete: Cascade) // 1-1 with Categories, onDelete: Cascade, making it such that upon deleting the parent, the child is also deleted, leaving no orphan entries
+}
+
+/// Predefined interest/category catalog
+model Interest {
+  id   String @id // e.g. "music_concerts", "tech_conferences" — not uuid, human-readable slug
+  name String @unique // e.g. "Music Concerts"
+
+  users UserInterest[]
+
+  @@map("interests")
+}
+
+/// Junction table — which users selected which interests
+model UserInterest {
+  userId     String @map("user_id")
+  interestId String @map("interest_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user     Users    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  interest Interest @relation(fields: [interestId], references: [id], onDelete: Cascade)
+
+  @@id([userId, interestId]) // composite PK — no duplicate selections
+  @@map("user_interests")
 }
