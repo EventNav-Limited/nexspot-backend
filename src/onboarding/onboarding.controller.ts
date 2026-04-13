@@ -3,6 +3,7 @@
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   HttpStatus,
   Post,
@@ -19,6 +20,22 @@ import { successResponse } from '../lib/response.lib.js';
 @Controller('onboarding')
 export class OnboardingController {
   constructor(private onboardingService: OnboardingService) {}
+
+  /**
+   * Fetch all available interests for the user to select from.
+   *
+   * @route GET /onboarding/interests
+   * @security BearerAuth
+   *
+   * @returns {SuccessResponse<Interest[]>}
+   *
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   */
+  @Get('interests')
+  async getInterests() {
+    const data = await this.onboardingService.getInterests();
+    return successResponse(data);
+  }
 
   /**
    * Save the user's interest selections. Intermediate step — does not

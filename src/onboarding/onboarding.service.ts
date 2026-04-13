@@ -53,4 +53,10 @@ export class OnboardingService {
     await this.usersHelper.completeOnboarding(userId);
     return { onboarding_completed: true };
   }
+
+  getInterests() {
+    return this.prisma.interest.findMany({
+      orderBy: { name: 'asc' },
+    });
+  }
 }
