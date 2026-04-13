@@ -40,4 +40,11 @@ export class UsersHelper {
       data,
     });
   }
+
+  completeOnboarding(id: string): Promise<Users> {
+    return this.prisma.users.update({
+      where: { id },
+      data: { onboardingCompleted: true },
+    });
+  }
 }

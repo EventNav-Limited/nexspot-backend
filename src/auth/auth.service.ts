@@ -12,6 +12,7 @@ import {
   UnauthorizedException,
 } from '../lib/error.lib.js';
 import { EmailVerificationLib } from '../lib/email-verification.lib.js';
+import { mapUser } from '../users/users.mapper.js';
 
 @Injectable()
 export class AuthService {
@@ -77,15 +78,7 @@ export class AuthService {
       refresh_token,
       device_id: (await newSession).deviceId,
       payload: {
-        user: {
-          id: newUser.id,
-          first_name: dto.firstName,
-          last_name: dto.lastName,
-          email: newUser.email,
-          role: newUser.role,
-          profile_photo_url: newUser.profilePhotoURL,
-          created_at: newUser.createdAt,
-        },
+        user: mapUser(newUser),
         access_token,
       },
     };
@@ -144,15 +137,7 @@ export class AuthService {
     return {
       refresh_token,
       payload: {
-        user: {
-          id: user.id,
-          first_name: user.firstName,
-          last_name: user.lastName,
-          email: user.email,
-          role: user.role,
-          profile_photo_url: `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}`,
-          created_at: user.createdAt,
-        },
+        user: mapUser(user),
         access_token,
       },
     };
@@ -212,15 +197,7 @@ export class AuthService {
       refresh_token,
       device_id: deviceId,
       payload: {
-        user: {
-          id: user.id,
-          first_name: user.firstName,
-          last_name: user.lastName,
-          email: user.email,
-          role: user.role,
-          profile_photo_url: user.profilePhotoURL,
-          created_at: user.createdAt,
-        },
+        user: mapUser(user),
         access_token,
       },
     };
