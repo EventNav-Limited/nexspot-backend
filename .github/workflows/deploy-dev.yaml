@@ -1,4 +1,4 @@
-name: Deploy to Vercel (Dev)
+name: Deploy to Render (Dev)
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
 
 jobs:
   deploy:
-    name: Build, Migrate & Deploy
+    name: Migrate & Deploy
     environment: development
     runs-on: ubuntu-latest
 
@@ -22,7 +22,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
@@ -34,8 +34,8 @@ jobs:
       - name: Run database migrations
         run: npx prisma migrate deploy
 
-      - name: Deploy to Vercel (Dev)
-        run: npx vercel --token=${{ secrets.VERCEL_TOKEN }}
-        env:
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+      - name: Trigger Render deploy
+        run: |
+          curl -s -X POST "${{ secrets.RENDER_DEPLOY_HOOK }}" \
+            -o /dev/null \
+            -w "HTTP Status: %{http_code}\n"
