@@ -60,7 +60,7 @@ export class AuthService {
     const salt = await bcrypt.genSalt(12);
     const tokenHash = await bcrypt.hash(refresh_token, salt);
 
-    const newSession = this.tokenService.createSession({
+    const newSession = await this.tokenService.createSession({
       deviceId,
       tokenHash,
       user: {
@@ -72,6 +72,7 @@ export class AuthService {
     // Send email — rollback user + session if it fails
     try {
       await this.emailVerificationLib.sendRegistrationVerification(
+        newUser.id,
         newUser.email,
         newUser.firstName,
       );
@@ -86,7 +87,7 @@ export class AuthService {
     // 4. Return JWT (optional: some APIs require manual login after register)
     return {
       refresh_token,
-      device_id: (await newSession).deviceId,
+      device_id: newSession.deviceId,
       payload: {
         user: mapUser(newUser),
         access_token,
@@ -94,7 +95,13 @@ export class AuthService {
     };
   }
 
-  async verify(userId: string) {
+  async verify(token: string) {
+    const { userId, purpose } = this.emailVerificationLib.verifyToken(token);
+
+    if (purpose !== 'registration') {
+      throw new BadRequestException('Invalid verification token');
+    }
+
     await this.usersHelper.update(userId, { isActive: true });
   }
 
@@ -128,9 +135,19 @@ export class AuthService {
     }
 
     if (!user.isActive) {
-      throw new UnauthorizedException(
-        'Account not verifies. please verify your account',
-      );
+      // Send email — rollback user + session if it fails
+      try {
+        await this.emailVerificationLib.sendRegistrationVerification(
+          user.id,
+          user.email,
+          user.firstName,
+        );
+        throw new UnauthorizedException(
+          'Account not verified. please verify your account',
+        );
+      } catch (error) {
+        console.log(error);
+      }
     }
 
     const access_token = this.tokenService.generateAccessToken(user.id);

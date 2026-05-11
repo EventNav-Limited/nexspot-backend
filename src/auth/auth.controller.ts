@@ -85,10 +85,9 @@ export class AuthController {
   }
   // ——— Verify ———————————————————————————————————————————————————————————————
 
-  @Get('verify')
-  @UseGuards(JwtAuthGuard)
-  async verify(@Req() req) {
-    await this.authService.verify(req.user.id);
+  @Get('verify-email')
+  async verify(@Query('token') token: string) {
+    await this.authService.verify(token);
     return successResponse(null);
   }
 

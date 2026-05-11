@@ -58,10 +58,16 @@ export class EmailVerificationLib {
   // ─── Senders ───────────────────────────────────────────────────────────────
 
   async sendRegistrationVerification(
+    userId: string,
     email: string,
     name: string,
   ): Promise<void> {
-    // TODO: make it such that clicking this link maked is verified to be true.
+    const token = this.generateToken({
+      sub: userId,
+      email,
+      purpose: 'registration',
+    });
+    const link = `${env.FRONTEND_URL}/verify-email?token=${token}`;
     await sendMail({
       to: email,
       subject: 'Welcome — verify your account',
@@ -85,11 +91,11 @@ export class EmailVerificationLib {
                   <p style="font-size:15px;color:#555;margin:0 0 1.5rem;line-height:1.6;">Hi ${name}, thanks for signing up! Click the button below to verify your email and activate your account.</p>
 
                   <div style="text-align:center;margin:2rem 0;">
-                    <a href="${env.VERIFICATION_LINK}" style="display:inline-block;background:#534AB7;color:#EEEDFE;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:500;">Verify my email</a>
+                    <a href="${link}" style="display:inline-block;background:#534AB7;color:#EEEDFE;text-decoration:none;padding:12px 32px;border-radius:8px;font-size:15px;font-weight:500;">Verify my email</a>
                   </div>
 
                   <p style="font-size:13px;color:#999;margin:0 0 0.5rem;">Or copy and paste this link into your browser:</p>
-                  <p style="font-size:12px;color:#534AB7;word-break:break-all;margin:0 0 1.5rem;padding:10px 12px;background:#EEEDFE;border-radius:8px;">${env.VERIFICATION_LINK}</p>
+                  <p style="font-size:12px;color:#534AB7;word-break:break-all;margin:0 0 1.5rem;padding:10px 12px;background:#EEEDFE;border-radius:8px;">${link}</p>
 
                   <div style="border-top:1px solid #eee;padding-top:1.25rem;">
                     <p style="font-size:13px;color:#999;margin:0;line-height:1.6;">This link expires in <strong style="color:#555;">1 hour</strong>. If you didn't create an account, you can safely ignore this email.</p>
