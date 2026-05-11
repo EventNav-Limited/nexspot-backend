@@ -76,7 +76,7 @@ COPY tsconfig.build.json ./
 RUN npx prisma generate
 
 # Compile TypeScript -> dist/
-RUN npm run build:ts
+RUN npm run build
 
 # -------------------------------------------------------------
 # STAGE 2: prod
