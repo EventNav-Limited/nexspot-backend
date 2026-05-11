@@ -12,6 +12,7 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -32,6 +33,8 @@ jobs:
           context: .
           target: prod
           push: true
-          tags: ghcr.io/EventNav-Limited/nexspot-backend:${{ github.ref_name }}
+          tags: |
+            ghcr.io/eventnav-limited/nexspot-backend:${{ github.ref_name }}
+            ghcr.io/eventnav-limited/nexspot-backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
