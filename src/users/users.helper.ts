@@ -40,6 +40,13 @@ export class UsersHelper {
       data,
     });
   }
+  delete(id: string) {
+    return this.prisma.users.delete({
+      where: {
+        id,
+      },
+    });
+  }
 
   completeOnboarding(id: string): Promise<Users> {
     return this.prisma.users.update({

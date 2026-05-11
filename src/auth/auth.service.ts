@@ -1,18 +1,19 @@
 import * as bcrypt from 'bcrypt';
+import { env } from '../config/env.js';
 import { JwtService } from '@nestjs/jwt';
 import { Injectable } from '@nestjs/common';
-import { RegisterDto } from './dto/register.dto.js';
-import { UsersHelper } from '../users/users.helper.js';
 import { LoginDto } from './dto/login.dto.js';
 import { TokenService } from './token.service.js';
-import { env } from '../config/env.js';
+import { mapUser } from '../users/users.mapper.js';
+import { RegisterDto } from './dto/register.dto.js';
+import { UsersHelper } from '../users/users.helper.js';
 import {
   BadRequestException,
   ConflictException,
+  InternalException,
   UnauthorizedException,
 } from '../lib/error.lib.js';
 import { EmailVerificationLib } from '../lib/email-verification.lib.js';
-import { mapUser } from '../users/users.mapper.js';
 
 @Injectable()
 export class AuthService {
@@ -68,10 +69,19 @@ export class AuthService {
       expiresAt: expiry,
     });
 
-    await this.emailVerificationLib.sendRegistrationVerification(
-      newUser.email,
-      newUser.firstName,
-    );
+    // Send email — rollback user + session if it fails
+    try {
+      await this.emailVerificationLib.sendRegistrationVerification(
+        newUser.email,
+        newUser.firstName,
+      );
+    } catch (error) {
+      console.log(error);
+      await this.usersHelper.delete(newUser.id); // cascades session if set up
+      throw new InternalException(
+        'Failed to send verification email. Please try again.',
+      );
+    }
 
     // 4. Return JWT (optional: some APIs require manual login after register)
     return {
@@ -82,6 +92,10 @@ export class AuthService {
         access_token,
       },
     };
+  }
+
+  async verify(userId: string) {
+    await this.usersHelper.update(userId, { isActive: true });
   }
 
   // ─── login ──────────────────────────────────────────────────────────────
@@ -111,6 +125,12 @@ export class AuthService {
 
     if (!isMatch) {
       throw new UnauthorizedException('Invalid Email Or Password');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException(
+        'Account not verifies. please verify your account',
+      );
     }
 
     const access_token = this.tokenService.generateAccessToken(user.id);
@@ -171,6 +191,7 @@ export class AuthService {
         profilePhotoURL: googleUser.picture,
         googleId: googleUser.googleId,
         authProvider: 'GOOGLE',
+        isActive: true,
       });
     }
 

@@ -42,7 +42,7 @@ model Users {
 
   createdAt DateTime @default(now()) @map("created_at") // TimeStamps
   updatedAt DateTime @updatedAt @map("Updated_at") // TimeStamps
-  isActive  Boolean  @default(true) @map("is_active")
+  isActive  Boolean  @default(false) @map("is_active")
 
   session   Session[]
   contact   Contact? // Optional 1-1 relation

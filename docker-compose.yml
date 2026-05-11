@@ -1,0 +1,39 @@
+services:
+  nexspot-v0:
+    build:
+      context: .
+      target: dev
+
+    user: '1001:1001'
+
+    image: nexspot-v0:dev
+    pull_policy: build
+
+    tty: true
+
+    ports:
+      - '3000:3000' # NestJS default; change if we set a different PORT
+      - '9229:9229' # Node inspector / debugger
+
+    cap_drop:
+      - ALL
+
+    security_opt:
+      - no-new-privileges:true
+
+    read_only: true
+
+    tmpfs:
+      - /tmp
+      - /app/dist # NestJS watch-mode compiles here at runtime
+
+    volumes:
+      - ./src:/app/src
+
+    env_file:
+      - .env
+
+    develop:
+      watch:
+        - action: rebuild
+          path: package.json

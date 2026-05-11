@@ -1,0 +1,27 @@
+# Dependencies — reinstalled fresh by npm ci in the image
+node_modules
+
+# Runtime build output — written into the tmpfs at runtime, never needed at build time
+dist
+test
+
+# Environment files — injected via env_file at runtime, must never bake into an image
+.env
+.env.*
+
+# Git internals — no use inside the image
+.git
+.github
+.gitignore
+
+# Docker files themselves
+Dockerfile
+docker-compose*.yml
+.dockerignore
+
+# Editor/OS noise
+.DS_Store
+*.log
+npm-debug.log*
+.zed
+*.md

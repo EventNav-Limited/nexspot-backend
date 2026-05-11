@@ -83,6 +83,14 @@ export class AuthController {
 
     return successResponse(data);
   }
+  // ——— Verify ———————————————————————————————————————————————————————————————
+
+  @Get('verify')
+  @UseGuards(JwtAuthGuard)
+  async verify(@Req() req) {
+    await this.authService.verify(req.user.id);
+    return successResponse(null);
+  }
 
   // ─── Google OAuth ──────────────────────────────────────────────────────────
 
