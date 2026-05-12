@@ -53,8 +53,8 @@ export class OnboardingController {
    */
   @Post('interests')
   @HttpCode(HttpStatus.OK)
-  saveInterests(@Req() req, @Body() dto: SaveInterestsDto) {
-    this.onboardingService.saveInterests(req.user.id, dto);
+  async saveInterests(@Req() req, @Body() dto: SaveInterestsDto) {
+    await this.onboardingService.saveInterests(req.user.id, dto);
     return successResponse(null);
   }
 

@@ -1,323 +1,98 @@
-# Nexspot API
+<p align="center">
+  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
+</p>
 
-**Stack:** NestJS + Prisma · **Version:** 1.0.0  
-**Base URL:** `https://nexspot-backend.vercel.app`  
-**Content-Type:** `application/json`
+[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
+[circleci-url]: https://circleci.com/gh/nestjs/nest
 
-> **Status:** Auth module 6/6 complete. `forgot-password` and `reset-password` are pending mail service setup.
+  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
+    <p align="center">
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
+<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
+<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
+<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
+<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
+<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
+  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
+    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
+  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
+</p>
+  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
+  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
 
----
+## Description
 
-## Authentication
+[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
 
-Protected endpoints require a Bearer token in the `Authorization` header:
+## Project setup
 
-```
-Authorization: Bearer <access_token>
-```
-
-Tokens expire after `3600` seconds. Use `POST /auth/refresh` to get a new access token without re-authenticating.
-
----
-
-## Standard Response Envelope
-
-**Success**
-```json
-{
-  "success": true,
-  "data": { }
-}
-```
-
-**Error**
-```json
-{
-  "success": false,
-  "error": {
-    "code": "ERROR_CODE",
-    "message": "Human-readable description",
-    "details": []
-  }
-}
+```bash
+$ npm install
 ```
 
----
+## Compile and run the project
 
-## Endpoint Summary
+```bash
+# development
+$ npm run start
 
-| Method | Endpoint | Auth | Status |
-|--------|----------|------|--------|
-| `POST` | `/auth/register` | No | ✅ Done |
-| `POST` | `/auth/login` | No | ✅ Done |
-| `POST` | `/auth/logout` | Yes | ✅ Done |
-| `POST` | `/auth/refresh` | No | ✅ Done |
-| `POST` | `/auth/forgot-password` | No | ✅ Done |
-| `POST` | `/auth/reset-password` | No | ✅ Done |
+# watch mode
+$ npm run start:dev
 
-
----
-
-
-## Endpoints
-
-### `POST /auth/register`
-
-Registers a new user account. All new accounts are assigned `role: attendee` by default. Organizer role is assigned via an internal admin action.
-
-> 🍪 **Cookie:** The `refresh_token` is set as an `HttpOnly` cookie on the response. It is not returned in the response body.
-
-**Request Body**
-
-| Field | Type | Required |
-|-------|------|----------|
-| `first_name` | `string` | Yes |
-| `last_name` | `string` | Yes |
-| `email` | `string` | Yes |
-| `password` | `string` | Yes |
-
-**Response `201`**
-```json
-{
-  "success": true,
-  "data": {
-    "user": {
-      "id": "usr_01J9XYZ",
-      "first_name": "Andrea",
-      "last_name": "Gomez",
-      "email": "andreagomes@example.com",
-      "role": "attendee",
-      "profile_photo_url": null,
-      "created_at": "2024-12-01T10:00:00Z"
-    },
-    "access_token": "eyJhbGciOiJIUzI1..."
-  }
-}
+# production mode
+$ npm run start:prod
 ```
 
-**Error Responses**
+## Run tests
 
-| Status | Scenario | Code |
-|--------|----------|------|
-| `400` | Missing or invalid fields | `VALIDATION_ERROR \| BADREQUEST` |
-| `409` | Email address already registered | `CONFLICT` |
+```bash
+# unit tests
+$ npm run test
 
----
+# e2e tests
+$ npm run test:e2e
 
-### `POST /auth/login`
-
-Authenticates a user and returns access and refresh tokens.
-
-> 🍪 **Cookie:** The `refresh_token` is set as an `HttpOnly` cookie on the response. It is not returned in the response body.
-
-**Request Body**
-
-| Field | Type | Required |
-|-------|------|----------|
-| `email` | `string` | Yes |
-| `password` | `string` | Yes |
-
-**Response `200`**
-```json
-{
-  "success": true,
-  "data": {
-    "user": {
-      "id": "usr_01J9XYZ",
-      "first_name": "Andrea",
-      "last_name": "Gomez",
-      "email": "andreagomes@example.com",
-      "role": "attendee",
-      "profile_photo_url": null,
-      "created_at": "2024-12-01T10:00:00Z"
-    },
-    "access_token": "eyJhbGciOiJIUzI1..."
-  }
-}
+# test coverage
+$ npm run test:cov
 ```
 
-**Error Responses**
+## Deployment
 
-| Status | Scenario | Code |
-|--------|----------|------|
-| `400` | Missing or invalid fields | `VALIDATION_ERROR` |
-| `401` | Invalid email or password | `UNAUTHORIZED` |
+When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
 
----
+If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
 
-### `POST /auth/logout`
-
-> 🔒 **Protected** — requires a valid Bearer token.
-
-Invalidates the current access and refresh tokens server-side. No request body required.
-
-**Response `200`**
-```json
-{
-  "success": true,
-  "message": ""
-}
+```bash
+$ npm install -g @nestjs/mau
+$ mau deploy
 ```
 
-**Error Responses**
+With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
 
-| Status | Scenario | Code |
-|--------|----------|------|
-| `401` | Missing, expired, or invalid token | `UNAUTHORIZED` |
+## Resources
 
----
+Check out a few resources that may come in handy when working with NestJS:
 
-### `POST /auth/refresh`
+- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
+- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
+- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
+- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
+- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
+- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
+- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
+- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
 
+## Support
 
-Obtains a new access token using the refresh token cookie set at login.
- 
-> 🍪 **Cookie:** Reads the `refresh_token` from the `HttpOnly` cookie automatically. No request body is required.
- 
-**Response `200`**
-```json
-{
-  "success": true,
-  "data": {
-    "access_token": "eyJhbGciOiJIUzI1..."
-  }
-}
-```
- 
-**Error Responses**
- 
-| Status | Scenario | Code |
-|--------|----------|------|
-| `401` | Refresh token cookie missing, expired, or invalid | `UNAUTHORIZED` |
- 
----
+Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
 
-### `POST /auth/forgot-password`
+## Stay in touch
 
-> ⏳ **Email** — if email exists in the database, as a registered user.
+- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
+- Website - [https://nestjs.com](https://nestjs.com/)
+- Twitter - [@nestframework](https://twitter.com/nestframework)
 
-Sends a password reset link to the provided email address.
+## License
 
-> The response is identical whether or not the email exists, to prevent account enumeration.
-
-**Request Body**
-
-| Field | Type | Required |
-|-------|------|----------|
-| `email` | `string` | Yes |
-
-**Response `200`**
-```json
-{
-  "success": true,
-  "message": null
-}
-```
-
----
-
-### `PUT /me/password`
-
-> 🔒 **Protected** — requires a valid Bearer token.
-
-Resets the user's password after verifying authentication startus.
-
-**Request Body**
-
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `old_password` | `string` | Yes | Must match current password |
-| `new_password` | `string` | Yes | must me comepared with `confirm password` on the frontend|
-
-**Response `200`**
-```json
-{
-  "success": true,
-  "message": "Password reset successfully"
-}
-```
-
-**Error Responses**
-
-| Status | Scenario | Code |
-|--------|----------|------|
-| `400` | Fields missing or passwords do not match | `VALIDATION_ERROR` |
-| `401` | Reset token is invalid or has expired | `UNAUTHORIZED` |
-
----
-
-## NestJS Module Structure
-
-```
-nexspot-backend/src/
-├── app.controller.ts
-├── app.module.ts
-├── app.service.ts
-├── auth
-│   ├── auth.controller.ts
-│   ├── auth.module.ts
-│   ├── auth.service.ts
-│   ├── dto
-│   │   ├── forgot-password.dto.ts
-│   │   ├── login.dto.ts
-│   │   └── register.dto.ts
-│   ├── guard
-│   │   └── jwt-auth.guard.ts
-│   ├── strategies
-│   │   └── jwt.strategies.ts
-│   └── token.service.ts
-├── categories
-│   ├── categories.controller.ts
-│   ├── categories.module.ts
-│   ├── categories.service.ts
-│   └── dto
-│       ├── create-category.dto.ts
-│       └── update-category.dto.ts
-├── config
-│   ├── config.module.ts
-│   ├── env.ts
-│   └── prisma.service.ts
-├── generated
-│   └── prisma
-│       ├── browser.ts
-│       ├── client.ts
-│       ├── commonInputTypes.ts
-│       ├── enums.ts
-│       ├── internal
-│       │   ├── class.ts
-│       │   ├── prismaNamespaceBrowser.ts
-│       │   └── prismaNamespace.ts
-│       ├── models
-│       │   ├── Session.ts
-│       │   └── Users.ts
-│       └── models.ts
-├── lib
-│   ├── error.lib.ts
-│   └── response.lib.ts
-├── main.ts
-└── users
-    ├── dto
-    │   └── change-password.dto.ts
-    ├── users.controller.ts
-    ├── users.helper.ts
-    ├── users.module.ts
-    └── users.service.ts
-```
-
----
-
-## Overall Module Progress
-
-| Module | Endpoints | Done | Status |
-|--------|-----------|------|--------|
-| Auth | 6 | 6 | ⚡ In Progress |
-| Categories & Formats | 5 | 5 | ○ Not Started |
-| Events | 10 | 0 | ○ Not Started |
-| Interests | 3 | 0 | ○ Not Started |
-| Tickets & Purchases | 2 | 0 | ○ Not Started |
-| Hosts & Following | 2 | 0 | ○ Not Started |
-| Calendar | 2 | 0 | ○ Not Started |
-| User Profile & Settings | 6 | 2 | ⚡ In Progress |
-| Organizer Event Mgmt | 1 | 0 | ○ Not Started |
-| Location Autocomplete | 1 | 0 | ○ Not Started |
-| **Total** | **35** | **13** | **34% complete** |
+Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).

@@ -21,7 +21,6 @@ const schema = z.object({
   PASSWORD_RESET_EXPIRY_MINUTES: z.coerce.number().default(60),
   EMAIL_VERIFICATION_SECRET: z.string(),
   FRONTEND_URL: z.url(),
-  VERIFICATION_LINK: z.url(),
   MAIL_PASS: z.string(),
   MAIL_FROM: z.string().email(),
   MAIL_FROM_NAME: z.string().default('App'),

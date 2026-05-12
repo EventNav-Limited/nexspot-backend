@@ -59,8 +59,12 @@ RUN apt-get update -y && apt-get install -y openssl && rm -rf /var/lib/apt/lists
 # it won't re-run npm ci on the next build. Big time saver.
 COPY package*.json ./
 
-# Install ALL dependencies including devDeps (we need tsc, ts-node, etc.)
-RUN npm ci
+# Copy package files and install ONLY production dependencies.
+# --omit=dev strips out TypeScript, Jest, ESLint etc.
+# Result: a much smaller node_modules.
+COPY package*.json ./
+RUN npm ci --omit=dev
+
 
 # Copy prisma schema so we can generate the client
 COPY prisma ./prisma
