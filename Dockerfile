@@ -111,4 +111,4 @@ USER appuser
 EXPOSE 8080
 
 # Lock the entrypoint so it can't be overridden
-ENTRYPOINT ["npm", "run", "start"]
+ENTRYPOINT ["npm", "run", "start:prod"]
