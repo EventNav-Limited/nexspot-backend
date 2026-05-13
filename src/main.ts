@@ -27,7 +27,11 @@ async function bootstrap() {
   );
 
   app.enableCors({
-    origin: ['http://localhost:3000', 'https://nexspot.vercel.app'],
+    origin: [
+      'http://localhost:3000',
+      'https://nexspot.vercel.app',
+      'https://api.nexspot.com.ng',
+    ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
