@@ -63,7 +63,7 @@ COPY package*.json ./
 # --omit=dev strips out TypeScript, Jest, ESLint etc.
 # Result: a much smaller node_modules.
 COPY package*.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 
 
 # Copy prisma schema so we can generate the client
