@@ -7,20 +7,27 @@ import { ValidationPipe } from '@nestjs/common';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  // Allow port reuse — prevents EADDRINUSE during hot reload
+  app.getHttpServer().on('listening', () => {
+    app.getHttpServer().keepAliveTimeout = 0;
+  });
+
+  const httpServer = app.getHttpServer();
+  httpServer.on('close', () => {});
+
   app.use(cookieParser());
 
   app.useGlobalFilters(new GlobalExceptionFilter());
 
-  // Optional: pair with ValidationPipe so class-validator errors flow through the filter
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
+      transform: true, // ← add this
       exceptionFactory: (errors) => {
         const details = errors.map((e) => ({
           field: e.property,
           message: Object.values(e.constraints ?? {}).join(', '),
         }));
-        // throws your ValidationException so the filter handles it uniformly
         return new ValidationException(details);
       },
     }),
@@ -37,6 +44,17 @@ async function bootstrap() {
     credentials: true,
   });
 
-  await app.listen(process.env.PORT ?? 8080);
+  await app.listen(process.env.PORT ?? 3000);
+
+  // Ensure the port is released cleanly
+  // when the watcher kills this process
+  process.on('SIGTERM', () => {
+    void app.close().then(() => process.exit(0));
+  });
+
+  process.on('SIGINT', () => {
+    void app.close().then(() => process.exit(0));
+  });
+  // this is the endddd
 }
 bootstrap();

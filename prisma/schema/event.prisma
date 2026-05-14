@@ -1,0 +1,114 @@
+// ----------------------
+// MODELS
+// ----------------------
+
+model Categories {
+  id      String @id @default(uuid())
+  name    String @unique
+  slug    String @unique
+  iconURL String @map("icon_url")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  events Events[]
+
+  @@map("categories")
+}
+
+/// Event format type e.g. Conference, Workshop, Concert, Meetup
+model Formats {
+  id   String @id @default(uuid())
+  name String @unique
+  slug String @unique
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  events Events[]
+
+  @@map("formats")
+}
+
+model Events {
+  id          String      @id @default(uuid())
+  title       String
+  slug        String      @unique
+  description String?
+  startDate   DateTime    @map("start_date")
+  endDate     DateTime    @map("end_date")
+  location    String? // null for online events
+  onlineLink  String?     @map("online_link") // null for in-person events
+  capacity    Int? // null means unlimited
+  bannerURL   String?     @map("banner_url")
+  status      EventStatus @default(DRAFT)
+  format      EventFormat @default(IN_PERSON)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  categoryId  String @map("category_id")
+  formatId    String @map("format_id")
+  organizerId String @map("organizer_id")
+
+  category  Categories @relation(fields: [categoryId], references: [id])
+  formatRef Formats    @relation(fields: [formatId], references: [id])
+  organizer Users      @relation(fields: [organizerId], references: [id], onDelete: Cascade)
+
+  tickets Tickets[]
+  orders  Orders[]
+
+  @@map("events")
+}
+
+/// A ticket type for an event e.g. VIP, Regular, Early Bird
+model Tickets {
+  id       String  @id @default(uuid())
+  name     String
+  price    Decimal @db.Decimal(10, 2)
+  quantity Int // total available
+  sold     Int     @default(0) // incremented on confirmed order
+
+  eventId String @map("event_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  event      Events       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  orderItems OrderItems[]
+
+  @@map("tickets")
+}
+
+/// A single checkout — one user, one event, potentially multiple ticket types
+model Orders {
+  id      String      @id @default(uuid())
+  userId  String      @map("user_id")
+  eventId String      @map("event_id")
+  status  OrderStatus @default(PENDING)
+  total   Decimal     @db.Decimal(10, 2)
+
+  /// Payment gateway transaction reference e.g. Paystack/Flutterwave ref
+  paymentReference String? @map("payment_reference")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user  Users        @relation(fields: [userId], references: [id])
+  event Events       @relation(fields: [eventId], references: [id])
+  items OrderItems[]
+
+  @@map("orders")
+}
+
+/// Line items within an order — one row per ticket type purchased
+model OrderItems {
+  id       String  @id @default(uuid())
+  orderId  String  @map("order_id")
+  ticketId String  @map("ticket_id")
+  quantity Int
+  price    Decimal @db.Decimal(10, 2) // snapshot of ticket price at time of purchase
+
+  order  Orders  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  ticket Tickets @relation(fields: [ticketId], references: [id])
+
+  @@map("order_items")
+}

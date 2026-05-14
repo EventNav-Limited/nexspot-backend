@@ -6,6 +6,7 @@ import { UsersModule } from './users/users.module.js';
 import { ConfigModule } from './config/config.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
+import { EventsModule } from './events/events.module.js';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { OnboardingModule } from './onboarding/onboarding.module.js';
     CategoriesModule,
     UsersModule,
     OnboardingModule,
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

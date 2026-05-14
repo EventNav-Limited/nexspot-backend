@@ -32,6 +32,7 @@ export class OnboardingController {
    * @throws {401} UNAUTHORIZED - Missing or invalid access token
    */
   @Get('interests')
+  @HttpCode(HttpStatus.OK)
   async getInterests() {
     const data = await this.onboardingService.getInterests();
     return successResponse(data);

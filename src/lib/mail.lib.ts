@@ -7,7 +7,6 @@ export interface MailOptions {
   to: string;
   subject: string;
   html?: string;
-  text?: string;
 }
 
 const client = new SendMailClient({
@@ -30,6 +29,5 @@ export async function sendMail(options: MailOptions): Promise<void> {
     ],
     subject: options.subject,
     htmlbody: options.html,
-    textbody: options.text,
   });
 }

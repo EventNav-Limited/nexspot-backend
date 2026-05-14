@@ -38,13 +38,13 @@ In the project directory, you can run:
 
 ```bash
 # development
-$ docker compose up
+$ npm run start:dev
 
 # prisma mmigrations (you will be prompted to define a name for the migration)
 $ npx prisma migrate dev
 
 # production prisma migration (push existing migrations to cloud db)
-$ npx prisma migrate 
+$ npx prisma migrate deploy
 ```
 
 

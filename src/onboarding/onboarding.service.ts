@@ -19,7 +19,10 @@ export class OnboardingService {
     await this.prisma.userInterest.deleteMany({ where: { userId } });
 
     await this.prisma.userInterest.createMany({
-      data: dto.interest_ids.map((interestId) => ({ userId, interestId })),
+      data: dto.interest_ids.map((interestId) => ({
+        userId,
+        interestId,
+      })),
     });
   }
 

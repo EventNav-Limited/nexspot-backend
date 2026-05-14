@@ -2,6 +2,8 @@ import {
   Body,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Post,
   Query,
   Req,
@@ -44,6 +46,7 @@ export class AuthController {
   // ─── Register ──────────────────────────────────────────────────────────────
 
   @Post('register')
+  @HttpCode(HttpStatus.CREATED)
   async register(
     @Body() dto: RegisterDto,
     @Res({ passthrough: true }) res: Response,
@@ -60,6 +63,7 @@ export class AuthController {
   // ─── Login ──────────────────────────────────────────────────────────────
 
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   async login(
     @Body() dto: LoginDto,
     @Req() req: Request,
@@ -87,6 +91,7 @@ export class AuthController {
 
   @Get('verify-email')
   async verify(@Query('token') token: string) {
+    console.log('hohoho');
     await this.authService.verify(token);
     return successResponse(null);
   }

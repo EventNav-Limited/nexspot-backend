@@ -1,4 +1,13 @@
-import { Body, Controller, Get, Put, Req, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Put,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { UsersService } from './users.service.js';
 import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
 import { successResponse } from '../lib/response.lib.js';
@@ -10,6 +19,7 @@ export class UsersController {
   constructor(private usersService: UsersService) {}
 
   @Get()
+  @HttpCode(HttpStatus.OK)
   async userPeofile(@Req() req) {
     const data = await this.usersService.userProfile(req.user.email);
     return successResponse(data);
