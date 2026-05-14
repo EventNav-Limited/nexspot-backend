@@ -39,10 +39,16 @@ In the project directory, you can run:
 ```bash
 # development
 $ npm run start:dev
-
+```
+or
+```bash
+$ npm run dev
+```
+```bash
 # prisma mmigrations (you will be prompted to define a name for the migration)
 $ npx prisma migrate dev
-
+```
+```bash
 # production prisma migration (push existing migrations to cloud db)
 $ npx prisma migrate deploy
 ```
