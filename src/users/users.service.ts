@@ -1,4 +1,4 @@
-import * as bcrypt from 'bcrypt';
+import argon2 from 'argon2';
 import { Injectable } from '@nestjs/common';
 import { UnauthorizedException } from '../lib/error.lib.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
@@ -34,13 +34,12 @@ export class UsersService {
     }
 
     // Compare passwords
-    const isMatch = await bcrypt.compare(dto.oldPassword, user.password);
+    const isMatch = await argon2.verify(dto.oldPassword, user.password);
     if (!isMatch) {
       throw new UnauthorizedException('Invalid password');
     }
 
-    const salt = await bcrypt.genSalt(12);
-    const hashedPassword = await bcrypt.hash(dto.password, salt);
+    const hashedPassword = await argon2.hash(dto.password);
 
     await this.usersHelper.update(user.id, {
       password: hashedPassword,

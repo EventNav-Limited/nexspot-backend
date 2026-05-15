@@ -1,4 +1,4 @@
-import * as bcrypt from 'bcrypt';
+import argon2 from 'argon2';
 import { env } from '../config/env.js';
 import { JwtService } from '@nestjs/jwt';
 import { Injectable } from '@nestjs/common';
@@ -33,7 +33,7 @@ export class AuthService {
       throw new ConflictException('An account with this email already exists');
 
     // 2. Hash the password (using 10 salt rounds)
-    const hashedPassword = await bcrypt.hash(dto.password, 12);
+    const hashedPassword = await argon2.hash(dto.password);
 
     // 3. Create the new user
     const newUser = await this.usersHelper.create({
@@ -57,8 +57,7 @@ export class AuthService {
 
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const salt = await bcrypt.genSalt(12);
-    const tokenHash = await bcrypt.hash(refresh_token, salt);
+    const tokenHash = await argon2.hash(refresh_token);
 
     const newSession = await this.tokenService.createSession({
       deviceId,
@@ -128,7 +127,7 @@ export class AuthService {
     }
 
     // 2. Compare passwords
-    const isMatch = await bcrypt.compare(dto.password, user.password);
+    const isMatch = await argon2.verify(dto.password, user.password);
 
     if (!isMatch) {
       throw new UnauthorizedException('Invalid Email Or Password');
@@ -158,8 +157,7 @@ export class AuthService {
 
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const salt = await bcrypt.genSalt(12);
-    const tokenHash = await bcrypt.hash(refresh_token, salt);
+    const tokenHash = await argon2.hash(refresh_token);
 
     await this.tokenService.updateSession({
       deviceId,
@@ -221,8 +219,7 @@ export class AuthService {
     );
 
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
-    const salt = await bcrypt.genSalt(12);
-    const tokenHash = await bcrypt.hash(refresh_token, salt);
+    const tokenHash = await argon2.hash(refresh_token);
 
     await this.tokenService.createSession({
       deviceId,
@@ -270,7 +267,7 @@ export class AuthService {
     }
 
     // 4. Validate token hash
-    const valid = await bcrypt.compare(refresh_token, session.tokenHash);
+    const valid = await argon2.verify(refresh_token, session.tokenHash);
     if (!valid) {
       throw new UnauthorizedException('Refresh token reuse detected');
     }
@@ -301,7 +298,7 @@ export class AuthService {
       throw new BadRequestException('Invalid token purpose');
     }
 
-    const hash = await bcrypt.hash(newPassword, 12);
+    const hash = await argon2.hash(newPassword);
     await this.usersHelper.update(userId, { password: hash });
 
     // TODO: Send confirmation email.
