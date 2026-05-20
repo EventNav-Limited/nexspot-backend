@@ -90,6 +90,7 @@ export class AuthController {
   // ——— Verify ———————————————————————————————————————————————————————————————
 
   @Get('verify-email')
+  @HttpCode(HttpStatus.OK)
   async verify(@Query('token') token: string) {
     console.log('hohoho');
     await this.authService.verify(token);
@@ -122,6 +123,7 @@ export class AuthController {
   // ─── forgot-password ──────────────────────────────────────────────────────────────
 
   @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     await this.authService.forgotPassword(dto.email!);
     return successResponse(null);
@@ -130,6 +132,7 @@ export class AuthController {
   // ─── reset-password ──────────────────────────────────────────────────────────────
 
   @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
   async resetPassword(
     @Query('token') token: string,
     @Body() dto: ForgotPasswordDto,
@@ -141,6 +144,7 @@ export class AuthController {
   // ─── refresh ──────────────────────────────────────────────────────────────
 
   @Post('refresh')
+  @HttpCode(HttpStatus.OK)
   async refresh(@Req() req: Request) {
     const refresh_token = req.cookies?.refresh_token; // ← was 'refreshToken', cookie is set as 'refresh_token'
 
@@ -157,6 +161,7 @@ export class AuthController {
 
   @Post('logout')
   @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const refresh_token = req.cookies?.refresh_token;
 

@@ -25,6 +25,7 @@ model Users {
   events           Events[]
   orders           Orders[]
   elevationRequest ElevationRequest?
+  savedEvents      SavedEvent[]
 
   @@map("users")
 }
@@ -91,4 +92,14 @@ model ElevationRequest {
   user Users @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("elevation_requests")
+}
+
+model SavedEvent {
+  userId  String
+  eventId String
+
+  user  Users  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Events @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@id([userId, eventId])
 }

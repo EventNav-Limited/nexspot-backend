@@ -5,6 +5,7 @@ import {
   HttpCode,
   HttpStatus,
   Patch,
+  Post,
   Put,
   Query,
   Req,
@@ -17,6 +18,11 @@ import { ChangePasswordDto } from './dto/change-password.dto.js';
 import { EditProfileDto } from './dto/edit-profile.dto.js';
 import { UpdateProfilePhotoDto } from './dto/update-profile-photo.dto.js';
 import { UpdateEmailDto } from './dto/update-email.dto.js';
+import { RequestElevationDto } from './dto/request-elevation.dto.js';
+import { GetMyEventsDto } from './dto/get-my-events.dto.js';
+import { Role } from '../generated/prisma/enums.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
+import { RolesGuard } from '../auth/guard/role.guard.js';
 
 @Controller('me')
 @UseGuards(JwtAuthGuard)
@@ -45,10 +51,7 @@ export class UsersController {
 
   @Patch('profile-photo')
   @HttpCode(HttpStatus.OK)
-  async updateProfilePhoto(
-    @Req() req,
-    @Body() dto: UpdateProfilePhotoDto,
-  ) {
+  async updateProfilePhoto(@Req() req, @Body() dto: UpdateProfilePhotoDto) {
     const data = await this.usersService.updateProfilePhoto(
       dto,
       req.user.email,
@@ -83,5 +86,24 @@ export class UsersController {
   async confirmEmailChange(@Query('token') token: string) {
     const data = await this.usersService.confirmEmailChange(token);
     return successResponse(data);
+  }
+
+  @Post('elevation-request')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @HttpCode(HttpStatus.CREATED)
+  @Roles(Role.ATTENDEE)
+  @HttpCode(201)
+  async requestElevation(@Body() dto: RequestElevationDto, @Req() req) {
+    return successResponse(
+      await this.usersService.requestElevation(req.user.id, dto.reason),
+    );
+  }
+
+  @Get('events')
+  @HttpCode(HttpStatus.OK)
+  async getMyEvents(@Query() query: GetMyEventsDto, @Req() req) {
+    return successResponse(
+      await this.usersService.getMyEvents(req.user.id, query),
+    );
   }
 }

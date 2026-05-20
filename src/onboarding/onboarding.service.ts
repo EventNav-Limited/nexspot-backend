@@ -57,8 +57,8 @@ export class OnboardingService {
     return { onboarding_completed: true };
   }
 
-  getInterests() {
-    return this.prisma.interest.findMany({
+  async getInterests() {
+    return await this.prisma.interest.findMany({
       orderBy: { name: 'asc' },
     });
   }

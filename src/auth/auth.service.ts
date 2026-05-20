@@ -127,7 +127,7 @@ export class AuthService {
     }
 
     // 2. Compare passwords
-    const isMatch = await argon2.verify(dto.password, user.password);
+    const isMatch = await argon2.verify(user.password, dto.password);
 
     if (!isMatch) {
       throw new UnauthorizedException('Invalid Email Or Password');
@@ -267,7 +267,7 @@ export class AuthService {
     }
 
     // 4. Validate token hash
-    const valid = await argon2.verify(refresh_token, session.tokenHash);
+    const valid = await argon2.verify(session.tokenHash, refresh_token);
     if (!valid) {
       throw new UnauthorizedException('Refresh token reuse detected');
     }

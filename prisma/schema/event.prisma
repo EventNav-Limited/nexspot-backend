@@ -10,7 +10,8 @@ model Categories {
 
   createdAt DateTime @default(now()) @map("created_at")
 
-  events Events[]
+  events             Events[]
+  interestcategories Interestcategory[]
 
   @@map("categories")
 }
@@ -29,18 +30,18 @@ model Formats {
 }
 
 model Events {
-  id          String      @id @default(uuid())
-  title       String
-  slug        String      @unique
-  description String?
-  startDate   DateTime    @map("start_date")
-  endDate     DateTime    @map("end_date")
-  location    String? // null for online events
-  onlineLink  String?     @map("online_link") // null for in-person events
-  capacity    Int? // null means unlimited
-  bannerURL   String?     @map("banner_url")
-  status      EventStatus @default(DRAFT)
-  format      EventFormat @default(IN_PERSON)
+  id           String      @id @default(uuid())
+  title        String
+  slug         String      @unique
+  description  String?
+  startDate    DateTime    @map("start_date")
+  endDate      DateTime    @map("end_date")
+  location     String? // null for online events
+  onlineLink   String?     @map("online_link") // null for in-person events
+  capacity     Int? // null means unlimited
+  bannerURL    String?     @map("banner_url")
+  status       EventStatus @default(DRAFT)
+  deliveryMode EventFormat @default(IN_PERSON) @map("delivery_mode")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -53,8 +54,9 @@ model Events {
   formatRef Formats    @relation(fields: [formatId], references: [id])
   organizer Users      @relation(fields: [organizerId], references: [id], onDelete: Cascade)
 
-  tickets Tickets[]
-  orders  Orders[]
+  tickets     Tickets[]
+  orders      Orders[]
+  savedEvents SavedEvent[]
 
   @@map("events")
 }
@@ -111,4 +113,17 @@ model OrderItems {
   ticket Tickets @relation(fields: [ticketId], references: [id])
 
   @@map("order_items")
+}
+
+model Interestcategory {
+  categoryId String @map("category_id")
+  interestId String @map("interest_id")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  category Categories @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  interest Interest   @relation(fields: [interestId], references: [id], onDelete: Cascade)
+
+  @@id([categoryId, interestId])
+  @@map("interest_category")
 }

@@ -7,7 +7,6 @@ import {
   IsEnum,
   IsInt,
   IsUrl,
-  IsUUID,
   Min,
   ValidateIf,
 } from 'class-validator';
@@ -28,12 +27,12 @@ export class CreateEventDto {
   endDate: Date;
 
   @IsEnum(EventFormat)
-  format: EventFormat;
+  deliveryMode: EventFormat;
 
-  @IsUUID()
+  @IsString()
   categoryId: string;
 
-  @IsUUID()
+  @IsString()
   formatId: string;
 
   @IsInt()
@@ -48,14 +47,17 @@ export class CreateEventDto {
   // required only for in-person and hybrid events
   @ValidateIf(
     (o) =>
-      o.format === EventFormat.IN_PERSON || o.format === EventFormat.HYBRID,
+      o.deliveryMode === EventFormat.IN_PERSON ||
+      o.deliveryMode === EventFormat.HYBRID,
   )
   @IsString()
   location?: string;
 
   // required only for online and hybrid events
   @ValidateIf(
-    (o) => o.format === EventFormat.ONLINE || o.format === EventFormat.HYBRID,
+    (o) =>
+      o.deliveryMode === EventFormat.ONLINE ||
+      o.deliveryMode === EventFormat.HYBRID,
   )
   @IsUrl()
   onlineLink?: string;

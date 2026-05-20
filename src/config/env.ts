@@ -27,6 +27,8 @@ const schema = z.object({
   GOOGLE_CLIENT_ID: z.string(),
   GOOGLE_CLIENT_SECRET: z.string(),
   GOOGLE_CALLBACK_URL: z.string().url(),
+  ADMIN_EMAIL: z.email(),
+  ADMIN_PASSWORD: z.string(),
 });
 
 const parsed = schema.safeParse(process.env);

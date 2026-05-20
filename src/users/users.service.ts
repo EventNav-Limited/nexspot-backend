@@ -2,6 +2,7 @@ import argon2 from 'argon2';
 import { Injectable } from '@nestjs/common';
 import {
   BadRequestException,
+  ConflictException,
   UnauthorizedException,
 } from '../lib/error.lib.js';
 import { ChangePasswordDto } from './dto/change-password.dto.js';
@@ -10,13 +11,18 @@ import { UpdateProfilePhotoDto } from './dto/update-profile-photo.dto.js';
 import { UpdateEmailDto } from './dto/update-email.dto.js';
 import { UsersHelper } from './users.helper.js';
 import { mapUser } from './users.mapper.js';
+import { mapEvent } from '../events/event.helpers.js';
 import { EmailVerificationLib } from '../lib/email-verification.lib.js';
+import { PrismaService } from '../config/prisma.service.js';
+import { OrderStatus } from '../generated/prisma/enums.js';
+import { GetMyEventsDto } from './dto/get-my-events.dto.js';
 
 @Injectable()
 export class UsersService {
   constructor(
     private usersHelper: UsersHelper,
     private emailVerificationLib: EmailVerificationLib,
+    private prisma: PrismaService,
   ) {}
 
   // ─── user-details ──────────────────────────────────────────────────────────────
@@ -144,6 +150,82 @@ export class UsersService {
 
     return {
       message: 'Your email address has been updated successfully.',
+    };
+  }
+
+  // ─── Elevation (Attendee → Organizer) ────────────────────────────────────
+
+  /**
+   * Attendee submits a request to become an organizer.
+   * Only one pending request allowed at a time.
+   */
+  async requestElevation(userId: string, reason: string) {
+    const existing = await this.prisma.elevationRequest.findUnique({
+      where: { userId },
+    });
+
+    if (existing && existing.status === 'PENDING')
+      throw new ConflictException(
+        'You already have a pending elevation request',
+      );
+
+    // if previously rejected, allow them to reapply by upserting
+    return this.prisma.elevationRequest.upsert({
+      where: { userId },
+      create: { userId, reason },
+      update: { reason, status: 'PENDING', reviewedAt: null, reviewNote: null },
+    });
+  }
+
+  /**
+   * Returns all events belonging to the authenticated organizer.
+   * Supports filtering by status and pagination.
+   */
+  async getMyEvents(organizerId: string, query: GetMyEventsDto) {
+    const page = Math.max(1, query.page ?? 1);
+    const perPage = Math.min(50, Math.max(1, query.per_page ?? 20));
+    const skip = (page - 1) * perPage;
+
+    const where = {
+      organizerId,
+      ...(query.status && { status: query.status }),
+    };
+
+    const [events, total] = await Promise.all([
+      this.prisma.events.findMany({
+        where,
+        skip,
+        take: perPage,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          tickets: true,
+          _count: {
+            select: {
+              orders: {
+                where: { status: OrderStatus.CONFIRMED },
+              },
+            },
+          },
+        },
+      }),
+      this.prisma.events.count({ where }),
+    ]);
+
+    const totalPages = Math.ceil(total / perPage);
+
+    return {
+      events: events.map((e) => ({
+        ...mapEvent(e),
+        confirmed_orders: e._count.orders, // how many confirmed orders this event has
+      })),
+      pagination: {
+        current_page: page,
+        per_page: perPage,
+        total_items: total,
+        total_pages: totalPages,
+        has_next: page < totalPages,
+        has_prev: page > 1,
+      },
     };
   }
 }

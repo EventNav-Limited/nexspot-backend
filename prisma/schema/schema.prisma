@@ -16,7 +16,8 @@ model Interest {
   id   String @id // e.g. "music_concerts", "tech_conferences" — not uuid, human-readable slug
   name String @unique // e.g. "Music Concerts"
 
-  users UserInterest[]
+  users              UserInterest[]
+  interestcategories Interestcategory[]
 
   @@map("interests")
 }

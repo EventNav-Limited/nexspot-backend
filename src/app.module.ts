@@ -7,6 +7,7 @@ import { ConfigModule } from './config/config.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
 import { EventsModule } from './events/events.module.js';
+import { AdminModule } from './admin/admin.module.js';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { EventsModule } from './events/events.module.js';
     UsersModule,
     OnboardingModule,
     EventsModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [AppService],
