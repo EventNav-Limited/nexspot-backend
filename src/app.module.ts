@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module } from '@nestjs/common';
 import { AppController } from './app.controller.js';
 import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
@@ -8,6 +8,7 @@ import { CategoriesModule } from './categories/categories.module.js';
 import { OnboardingModule } from './onboarding/onboarding.module.js';
 import { EventsModule } from './events/events.module.js';
 import { AdminModule } from './admin/admin.module.js';
+import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware.js';
 
 @Module({
   imports: [
@@ -22,4 +23,8 @@ import { AdminModule } from './admin/admin.module.js';
   controllers: [AppController],
   providers: [AppService],
 })
-export class AppModule {}
+export class AppModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(HttpLoggerMiddleware).forRoutes('*'); // or scope to specific routes
+  }
+}

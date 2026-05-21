@@ -27,6 +27,10 @@ export class CategoriesService {
     return this.categoriesHelper.findAll();
   }
 
+  async findAllFormats() {
+    return this.categoriesHelper.findAllFormats();
+  }
+
   async findOne(id: string) {
     const category = await this.categoriesHelper.findOne({ id });
     if (!category) {

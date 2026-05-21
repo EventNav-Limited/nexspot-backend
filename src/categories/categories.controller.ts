@@ -52,3 +52,14 @@ export class CategoriesController {
     return successResponse(data);
   }
 }
+@UseGuards(JwtAuthGuard)
+@Controller('formats')
+export class FormatCntroller {
+  constructor(private readonly categoriesService: CategoriesService) {}
+
+  @Get()
+  @HttpCode(HttpStatus.OK)
+  async findAll() {
+    return successResponse(await this.categoriesService.findAllFormats());
+  }
+}

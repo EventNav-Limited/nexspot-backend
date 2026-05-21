@@ -5,7 +5,9 @@ import { GlobalExceptionFilter, ValidationException } from './lib/error.lib.js';
 import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    logger: ['error', 'warn', 'log'], // keep these, removes verbose/debug
+  });
 
   // Allow port reuse — prevents EADDRINUSE during hot reload
   app.getHttpServer().on('listening', () => {

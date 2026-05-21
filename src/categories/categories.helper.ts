@@ -16,6 +16,12 @@ export class CategoriesHelper {
     });
   }
 
+  findAllFormats() {
+    return this.prisma.formats.findMany({
+      include: { _count: { select: { events: true } } },
+    });
+  }
+
   findById(id: string) {
     return this.prisma.categories.findUnique({
       where: { id },
