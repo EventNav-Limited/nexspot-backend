@@ -9,6 +9,8 @@ import {
   IsUrl,
   Min,
   ValidateIf,
+  IsLatitude,
+  IsLongitude,
 } from 'class-validator';
 import { EventFormat } from '../../generated/prisma/client.js';
 
@@ -45,20 +47,20 @@ export class CreateEventDto {
   bannerURL?: string;
 
   // required only for in-person and hybrid events
-  @ValidateIf(
-    (o) =>
-      o.deliveryMode === EventFormat.IN_PERSON ||
-      o.deliveryMode === EventFormat.HYBRID,
-  )
+  @ValidateIf((o) => o.format !== EventFormat.ONLINE)
   @IsString()
   location?: string;
 
+  @ValidateIf((o) => o.format !== EventFormat.ONLINE)
+  @IsLatitude()
+  latitude?: number;
+
+  @ValidateIf((o) => o.format !== EventFormat.ONLINE)
+  @IsLongitude()
+  longitude?: number;
+
   // required only for online and hybrid events
-  @ValidateIf(
-    (o) =>
-      o.deliveryMode === EventFormat.ONLINE ||
-      o.deliveryMode === EventFormat.HYBRID,
-  )
+  @ValidateIf((o) => o.deliveryMode === !EventFormat.IN_PERSON)
   @IsUrl()
   onlineLink?: string;
 }

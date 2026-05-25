@@ -37,6 +37,8 @@ model Events {
   startDate    DateTime    @map("start_date")
   endDate      DateTime    @map("end_date")
   location     String? // null for online events
+  latitude     Float?
+  longitude    Float?
   onlineLink   String?     @map("online_link") // null for in-person events
   capacity     Int? // null means unlimited
   bannerURL    String?     @map("banner_url")

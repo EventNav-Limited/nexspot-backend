@@ -10,7 +10,13 @@ import { EventFormat, EventStatus } from '../generated/prisma/enums.js';
 import { GetEventsDto, PriceFilter, SortOrder } from './dto/get-events.dto.js';
 import { PrismaService } from '../config/prisma.service.js';
 import { CreateTicketDto } from './dto/create-ticket.dto.js';
-import { generateSlug, mapEvent, resolveDateRange } from './event.helpers.js';
+import {
+  formatDateDisplay,
+  generateSlug,
+  mapEvent,
+  resolveDateRange,
+} from './event.helpers.js';
+import { GetEventsNearMeDto } from './dto/get-events-near-me.dto.js';
 
 @Injectable()
 export class EventsService {
@@ -194,6 +200,131 @@ export class EventsService {
         format_id: dto.format_id ?? null,
         sort: dto.sort ?? 'relevance',
       },
+    };
+  }
+
+  /**
+   * Returns published in-person and hybrid events within a given radius
+   * of the provided coordinates, ordered by distance ascending.
+   * Falls back to the user's saved contact coordinates if no lat/lng is provided.
+   * Uses the Haversine formula for distance calculation.
+   */
+  async getEventsNearMe(userId: string | null, query: GetEventsNearMeDto) {
+    // resolve coordinates — query params take priority over saved contact
+    let lat = query.lat;
+    let lng = query.lng;
+
+    if (!lat || !lng) {
+      if (!userId) {
+        throw new BadRequestException(
+          'Location required. Please provide lat and lng or log in with saved coordinates.',
+        );
+      }
+
+      const contact = await this.prisma.contact.findUnique({
+        where: { userId },
+        select: { latitude: true, longitude: true },
+      });
+
+      if (!contact?.latitude || !contact?.longitude) {
+        throw new BadRequestException(
+          'No coordinates found. Please provide lat and lng or update your profile location.',
+        );
+      }
+
+      lat = contact.latitude;
+      lng = contact.longitude;
+    }
+
+    const radius = Math.max(1, Math.min(query.radius ?? 10, 100)); // cap at 100km
+    const page = Math.max(1, query.page ?? 1);
+    const perPage = Math.min(50, Math.max(1, query.per_page ?? 20));
+    const skip = (page - 1) * perPage;
+
+    // Haversine formula — calculates great-circle distance between two coordinate pairs
+    // 6371 is Earth's radius in kilometers
+    const events = await this.prisma.$queryRaw<any[]>`
+      SELECT
+        id, title, slug, banner_url,
+        category_id, format_id, delivery_mode, status,
+        start_date, end_date, location, latitude, longitude,
+        distance_km
+      FROM (
+        SELECT
+          id, title, slug, banner_url,
+          category_id, format_id, delivery_mode, status,
+          start_date, end_date, location, latitude, longitude,
+          (
+            6371 * acos(
+              cos(radians(${lat})) * cos(radians(latitude)) *
+              cos(radians(longitude) - radians(${lng})) +
+              sin(radians(${lat})) * sin(radians(latitude))
+            )
+          ) AS distance_km
+        FROM events
+        WHERE status = 'PUBLISHED'
+          AND delivery_mode != 'ONLINE'
+          AND latitude IS NOT NULL
+          AND longitude IS NOT NULL
+      ) AS events_with_distance
+      WHERE distance_km < ${radius}
+      ORDER BY distance_km ASC
+      LIMIT ${perPage} OFFSET ${skip}
+    `;
+
+    // get total count for pagination
+    const total = await this.prisma.$queryRaw<{ count: bigint }[]>`
+      SELECT COUNT(*) AS count
+      FROM (
+        SELECT
+          (
+            6371 * acos(
+              cos(radians(${lat})) * cos(radians(latitude)) *
+              cos(radians(longitude) - radians(${lng})) +
+              sin(radians(${lat})) * sin(radians(latitude))
+            )
+          ) AS distance_km
+        FROM events
+        WHERE status = 'PUBLISHED'
+          AND delivery_mode != 'ONLINE'
+          AND latitude IS NOT NULL
+          AND longitude IS NOT NULL
+      ) AS events_with_distance
+      WHERE distance_km < ${radius}
+    `;
+
+    const totalItems = Number(total[0]?.count ?? 0);
+    const totalPages = Math.ceil(totalItems / perPage);
+
+    return {
+      events: events.map((e) => ({
+        id: e.id,
+        title: e.title,
+        slug: e.slug,
+        banner_url: e.banner_url,
+        category_id: e.category_id,
+        format_id: e.format_id,
+        format: e.delivery_mode,
+        status: e.status,
+        date: {
+          start: e.start_date,
+          end: e.end_date,
+          display: formatDateDisplay(e.start_date, e.end_date),
+        },
+        location: {
+          display: e.location,
+          distance_km: Math.round(e.distance_km * 10) / 10 + 'km',
+        }, // round to 1 decimal
+      })),
+      pagination: {
+        current_page: page,
+        per_page: perPage,
+        total_items: totalItems,
+        total_pages: totalPages,
+        has_next: page < totalPages,
+        has_prev: page > 1,
+      },
+      coordinates_used: { lat, lng },
     };
   }
 

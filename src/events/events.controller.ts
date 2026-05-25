@@ -19,6 +19,7 @@ import { CreateEventDto } from './dto/create-event.dto.js';
 import { successResponse } from '../lib/response.lib.js';
 import { CreateTicketDto } from './dto/create-ticket.dto.js';
 import { GetEventsDto } from './dto/get-events.dto.js';
+import { GetEventsNearMeDto } from './dto/get-events-near-me.dto.js';
 
 @Controller('events')
 export class EventsController {
@@ -30,6 +31,22 @@ export class EventsController {
   @Get()
   async getEvents(@Query() query: GetEventsDto) {
     return successResponse(await this.eventsService.getEvents(query));
+  }
+
+  /**
+   * GET /events/near-me
+   * Returns published in-person and hybrid events within a radius of the
+   * provided coordinates. Falls back to the user's saved contact coordinates
+   * if authenticated and no lat/lng is provided.
+   * Optional query params: lat, lng, radius (km), page, per_page.
+   */
+  @Get('near-me')
+  async getEventsNearMe(@Query() query: GetEventsNearMeDto, @Req() req) {
+    // userId is null if the user is not authenticated
+    const userId = req.user?.id ?? null;
+    return successResponse(
+      await this.eventsService.getEventsNearMe(userId, query),
+    );
   }
 
   /**
