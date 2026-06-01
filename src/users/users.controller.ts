@@ -101,9 +101,21 @@ export class UsersController {
 
   @Get('events')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ORGANIZER)
   async getMyEvents(@Query() query: GetMyEventsDto, @Req() req) {
     return successResponse(
       await this.usersService.getMyEvents(req.user.id, query),
     );
+  }
+
+  /**
+   * GET /orders/me
+   * Returns all orders for the authenticated user.
+   */
+  @Get('orders')
+  @HttpCode(HttpStatus.OK)
+  async getMyOrders(@Req() req) {
+    return successResponse(await this.usersService.getMyOrders(req.user.id));
   }
 }

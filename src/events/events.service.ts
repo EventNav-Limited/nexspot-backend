@@ -17,6 +17,9 @@ import {
   resolveDateRange,
 } from './event.helpers.js';
 import { GetEventsNearMeDto } from './dto/get-events-near-me.dto.js';
+import { UpdateEventDto } from './dto/update-event.dto.js';
+import { UpdateTicketDto } from './dto/update-ticket.dto.js';
+import { SetTicketingDto, TicketType } from './dto/set-ticketing.dto.js';
 
 @Injectable()
 export class EventsService {
@@ -66,6 +69,141 @@ export class EventsService {
   }
 
   /**
+   * Updates an event. Only the owning organizer can update.
+   * Cannot update a CANCELLED or COMPLETED event.
+   */
+  async updateEvent(organizerId: string, eventId: string, dto: UpdateEventDto) {
+    const event = await this.prisma.events.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.organizerId !== organizerId)
+      throw new ForbiddenException('You do not own this event');
+    if (
+      event.status != EventStatus.CANCELLED &&
+      event.status != EventStatus.COMPLETED
+    )
+      throw new BadRequestException(
+        `Cannot update a ${event.status.toLowerCase()} event`,
+      );
+
+    const updated = await this.prisma.events.update({
+      where: { id: eventId },
+      data: {
+        ...dto,
+        // re-generate slug if title changed
+        ...(dto.title && { slug: generateSlug(dto.title) }),
+      },
+      include: { tickets: true, organizer: true },
+    });
+
+    return mapEvent(updated);
+  }
+
+  /**
+   * Sets the ticketing configuration for an event.
+   * Free events get a single free tier.
+   * Paid events replace all existing tiers with the provided ones.
+   * Blocked if any existing tier has recorded sales.
+   */
+  async setTicketing(
+    organizerId: string,
+    eventId: string,
+    dto: SetTicketingDto,
+  ) {
+    const event = await this.prisma.events.findUnique({
+      where: { id: eventId },
+      include: { tickets: true },
+    });
+
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.organizerId !== organizerId)
+      throw new ForbiddenException('You do not own this event');
+    if (
+      event.status === EventStatus.COMPLETED ||
+      event.status === EventStatus.CANCELLED
+    )
+      throw new BadRequestException(
+        `Cannot update ticketing for a ${event.status.toLowerCase()} event`,
+      );
+
+    // block replacement if any tier has sales — prevents data inconsistency
+    const hasSales = event.tickets.some((t) => t.sold > 0);
+    if (hasSales)
+      throw new BadRequestException(
+        'Cannot replace ticket tiers — some tickets have already been sold',
+      );
+
+    return this.prisma.$transaction(async (tx) => {
+      // delete all existing tiers before replacing
+      await tx.tickets.deleteMany({ where: { eventId } });
+
+      if (dto.type === TicketType.FREE) {
+        await tx.tickets.create({
+          data: {
+            eventId,
+            name: 'Free',
+            price: 0,
+            quantity: event.capacity ?? 1000,
+            sold: 0,
+          },
+        });
+      } else {
+        await tx.tickets.createMany({
+          data: dto.tiers!.map((tier) => ({
+            eventId,
+            name: tier.name,
+            price: tier.price,
+            quantity: tier.quantity,
+            sold: 0,
+          })),
+        });
+      }
+
+      return tx.events.findUnique({
+        where: { id: eventId },
+        include: { tickets: true, organizer: true },
+      });
+    });
+  }
+
+  /**
+   * Returns the full event object plus a completeness check.
+   * isComplete is true only when all required fields are present and valid.
+   * missingFields lists exactly what is blocking publishing.
+   */
+  async reviewEvent(organizerId: string, eventId: string) {
+    const event = await this.prisma.events.findUnique({
+      where: { id: eventId },
+      include: { tickets: true, organizer: true },
+    });
+
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.organizerId !== organizerId)
+      throw new ForbiddenException('You do not own this event');
+
+    const missingFields: string[] = [];
+
+    if (!event.title) missingFields.push('title');
+    if (!event.bannerURL) missingFields.push('banner');
+    if (event.tickets.length === 0)
+      missingFields.push('at least one ticket type');
+    if (!event.startDate || new Date(event.startDate) <= new Date())
+      missingFields.push('start date must be in the future');
+    if (event.deliveryMode === EventFormat.IN_PERSON && !event.location)
+      missingFields.push('location');
+    if (event.deliveryMode === EventFormat.ONLINE && !event.onlineLink)
+      missingFields.push('online link');
+
+    return {
+      ...mapEvent(event),
+      isComplete: missingFields.length === 0,
+      missingFields,
+    };
+  }
+
+  /**
    * Publishes an event — moves it from DRAFT to PUBLISHED.
    * Requires at least one ticket type to be defined.
    */
@@ -92,6 +230,47 @@ export class EventsService {
     });
 
     return mapEvent(updated);
+  }
+
+  /**
+   * Explicitly saves the current state as DRAFT.
+   * No-op if already a DRAFT — returns current state.
+   * Cannot save as draft if PUBLISHED, CANCELLED, or COMPLETED.
+   */
+  async saveDraft(organizerId: string, eventId: string) {
+    const event = await this.prisma.events.findUnique({
+      where: { id: eventId },
+      include: { tickets: true, organizer: true },
+    });
+
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.organizerId !== organizerId)
+      throw new ForbiddenException('You do not own this event');
+    if (event.status !== EventStatus.DRAFT)
+      throw new BadRequestException(
+        `Cannot save as draft — event is ${event.status.toLowerCase()}`,
+      );
+
+    // already a draft — nothing to update, just return current state
+    return mapEvent(event);
+  }
+
+  /**
+   * Permanently deletes a DRAFT event.
+   * Cannot delete PUBLISHED, CANCELLED, or COMPLETED events.
+   */
+  async deleteEvent(organizerId: string, eventId: string) {
+    const event = await this.prisma.events.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.organizerId !== organizerId)
+      throw new ForbiddenException('You do not own this event');
+    if (event.status !== EventStatus.DRAFT)
+      throw new BadRequestException('Only draft events can be deleted');
+
+    await this.prisma.events.delete({ where: { id: eventId } });
   }
 
   // ─── Event Discovery (Public) ─────────────────────────────────────────────
@@ -382,5 +561,57 @@ export class EventsService {
         eventId,
       },
     });
+  }
+
+  /**
+   * Updates a ticket type.
+   * Cannot reduce quantity below number already sold.
+   */
+  async updateTicket(
+    organizerId: string,
+    ticketId: string,
+    dto: UpdateTicketDto,
+  ) {
+    const ticket = await this.prisma.tickets.findUnique({
+      where: { id: ticketId },
+      include: { event: true },
+    });
+
+    if (!ticket) throw new NotFoundException('Ticket not found');
+    if (ticket.event.organizerId !== organizerId)
+      throw new ForbiddenException('You do not own this event');
+
+    // cannot reduce quantity below what has already been sold
+    if (dto.quantity !== undefined && dto.quantity < ticket.sold) {
+      throw new BadRequestException(
+        `Cannot reduce quantity below ${ticket.sold} (already sold)`,
+      );
+    }
+
+    return this.prisma.tickets.update({
+      where: { id: ticketId },
+      data: dto,
+    });
+  }
+
+  /**
+   * Deletes a ticket type.
+   * Cannot delete if any tickets have been sold.
+   */
+  async deleteTicket(organizerId: string, ticketId: string) {
+    const ticket = await this.prisma.tickets.findUnique({
+      where: { id: ticketId },
+      include: { event: true },
+    });
+
+    if (!ticket) throw new NotFoundException('Ticket not found');
+    if (ticket.event.organizerId !== organizerId)
+      throw new ForbiddenException('You do not own this event');
+    if (ticket.sold > 0)
+      throw new BadRequestException(
+        'Cannot delete a ticket type that has already been sold',
+      );
+
+    await this.prisma.tickets.delete({ where: { id: ticketId } });
   }
 }

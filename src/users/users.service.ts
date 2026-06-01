@@ -228,4 +228,32 @@ export class UsersService {
       },
     };
   }
+
+  /**
+   * Returns all orders for the authenticated user.
+   */
+  async getMyOrders(userId: string) {
+    return this.prisma.orders.findMany({
+      where: { userId },
+      include: {
+        event: {
+          select: {
+            id: true,
+            title: true,
+            slug: true,
+            startDate: true,
+            endDate: true,
+            location: true,
+            bannerURL: true,
+          },
+        },
+        items: {
+          include: {
+            ticket: { select: { id: true, name: true, price: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
 }

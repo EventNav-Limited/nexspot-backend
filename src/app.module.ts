@@ -9,6 +9,7 @@ import { OnboardingModule } from './onboarding/onboarding.module.js';
 import { EventsModule } from './events/events.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware.js';
+import { OrdersModule } from './orders/orders.module.js';
 
 @Module({
   imports: [
@@ -19,6 +20,7 @@ import { HttpLoggerMiddleware } from './common/middleware/http-logger.middleware
     OnboardingModule,
     EventsModule,
     AdminModule,
+    OrdersModule,
   ],
   controllers: [AppController],
   providers: [AppService],
