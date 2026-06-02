@@ -177,6 +177,19 @@ export class UsersService {
     });
   }
 
+  async elevationRequest(userId: string) {
+    const requests = await this.prisma.elevationRequest.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return {
+      requests: requests.map((r) => ({
+        ...this.usersHelper.mapRequest(r),
+      })),
+    };
+  }
+
   /**
    * Returns all events belonging to the authenticated organizer.
    * Supports filtering by status and pagination.

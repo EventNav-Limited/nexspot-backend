@@ -54,4 +54,28 @@ export class UsersHelper {
       data: { onboardingCompleted: true },
     });
   }
+
+  mapRequest(request: any) {
+    return {
+      id: request.id,
+      createdAt: this.formatDateDisplay(request.createdAt),
+      status: request.status,
+      reviewedAt: request.reviewedAt,
+      reviewNote: request.reviewNote,
+    };
+  }
+
+  // TODO: Fix timezone for input and output
+  //
+  formatDateDisplay(date: Date): string {
+    const dateStr = date.toLocaleDateString('en-GB', {
+      month: 'short',
+      day: 'numeric',
+    });
+    const time = date.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+    return `${dateStr} | ${time}`;
+  }
 }

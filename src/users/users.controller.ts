@@ -88,6 +88,8 @@ export class UsersController {
     return successResponse(data);
   }
 
+  // ─── create elevation request ──────────────────────────────────────────────────────────────
+
   @Post('elevation-request')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.CREATED)
@@ -99,6 +101,20 @@ export class UsersController {
     );
   }
 
+  // ─── create elevation request ──────────────────────────────────────────────────────────────
+
+  @Get('elevation-request')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.CREATED)
+  @HttpCode(201)
+  async elevationRequest(@Body() dto: RequestElevationDto, @Req() req) {
+    return successResponse(
+      await this.usersService.elevationRequest(req.user.id),
+    );
+  }
+
+  // ─── get events created as an organizer ──────────────────────────────────────────────────────────────
+
   @Get('events')
   @HttpCode(HttpStatus.OK)
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -108,6 +124,8 @@ export class UsersController {
       await this.usersService.getMyEvents(req.user.id, query),
     );
   }
+
+  // ───  Returns all orders for the authenticated user ──────────────────────────────────────────────────────────────
 
   /**
    * GET /orders/me
