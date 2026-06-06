@@ -116,7 +116,7 @@ export class EmailVerificationLib {
       email,
       purpose: 'registration',
     });
-    const link = `${env.FRONTEND_URL}/verify-email?token=${token}`;
+    const link = `${env.FRONTEND_URL}/auth/verify-email?token=${token}`;
 
     await sendMail({
       to: email,
@@ -140,7 +140,7 @@ export class EmailVerificationLib {
       email,
       purpose: 'forgot-password',
     });
-    const link = `${env.FRONTEND_URL}/reset-password?token=${token}`;
+    const link = `${env.FRONTEND_URL}/auth/reset-password?token=${token}`;
 
     await sendMail({
       to: email,
@@ -167,7 +167,7 @@ export class EmailVerificationLib {
       email: newEmail,
       purpose: 'email-change',
     });
-    const link = `${env.FRONTEND_URL}/confirm-email-change?token=${token}`;
+    const link = `${env.FRONTEND_URL}/me/confirm-email-change?token=${token}`;
 
     await sendMail({
       to: newEmail,

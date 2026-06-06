@@ -30,9 +30,17 @@ import { SetTicketingDto } from './dto/set-ticketing.dto.js';
 @Controller('events')
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
+
   /**
-   * GET /events
-   * Returns paginated published events with optional filters.
+   * Return a paginated list of published events with optional filtering
+   * and sorting. No authentication required.
+   *
+   * @route GET /events
+   *
+   * @param query - { q?, location?, price?, date?, date_from?, date_to?,
+   *                  category_id?, format_id?, sort?, page?, per_page? }
+   *
+   * @returns {SuccessResponse<{ events: Event[]; pagination: Pagination; applied_filters: object }>}
    */
   @Get()
   async getEvents(@Query() query: GetEventsDto) {
@@ -40,14 +48,40 @@ export class EventsController {
   }
 
   /**
-   * GET /events/:slug
-   * Returns a single published event by slug.
+   * Return a single published event by its URL slug.
+   *
+   * @route GET /events/:slug
+   *
+   * @param slug - URL-safe event slug (e.g. 'lagos-tech-meetup-abc123')
+   *
+   * @returns {SuccessResponse<Event>}
+   *
+   * @throws {404} NOT_FOUND - Event does not exist or is not published
    */
   @Get(':slug')
   async getEvent(@Param('slug') slug: string) {
     return successResponse(await this.eventsService.getEvent(slug));
   }
 
+  /**
+   * Create a new event in DRAFT status. Only organizers can call this.
+   *
+   * @route POST /events
+   * @security BearerAuth
+   * @role ORGANIZER
+   *
+   * @param dto - { title, startDate, endDate, deliveryMode, categoryId, formatId,
+   *               description?, capacity?, bannerURL?, location?, latitude?,
+   *               longitude?, onlineLink? }
+   *
+   * @returns {SuccessResponse<Event>}
+   *
+   * @throws {400} BAD_REQUEST - endDate is not after startDate
+   * @throws {400} BAD_REQUEST - ONLINE event is missing onlineLink
+   * @throws {400} BAD_REQUEST - IN_PERSON event is missing location
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {403} FORBIDDEN - Insufficient role (ORGANIZER required)
+   */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.CREATED)
   @Roles(Role.ORGANIZER)
@@ -61,9 +95,23 @@ export class EventsController {
   }
 
   /**
-   * PATCH /events/:id
-   * Updates an existing event.
-   * Requires ORGANIZER role and ownership.
+   * Update fields on an existing event. Only the owning organizer may update.
+   * All body fields are optional — only provided fields are changed.
+   * Cannot update CANCELLED or COMPLETED events.
+   *
+   * @route PATCH /events/:id
+   * @security BearerAuth
+   * @role ORGANIZER
+   *
+   * @param id  - Event UUID
+   * @param dto - Partial subset of event fields to update
+   *
+   * @returns {SuccessResponse<Event>}
+   *
+   * @throws {400} BAD_REQUEST - Event is CANCELLED or COMPLETED
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {403} FORBIDDEN - Authenticated user does not own this event
+   * @throws {404} NOT_FOUND - Event not found
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.OK)
@@ -80,10 +128,22 @@ export class EventsController {
   }
 
   /**
-   * POST /events/:id/save-draft
-   * Explicitly saves current state as DRAFT.
-   * No-op if already a DRAFT.
-   * Requires ORGANIZER role and ownership.
+   * Explicitly save the current event state as DRAFT. No-op if the event
+   * is already in DRAFT status — returns current state unchanged.
+   * Cannot save as draft if the event is PUBLISHED, CANCELLED, or COMPLETED.
+   *
+   * @route POST /events/:id/save-draft
+   * @security BearerAuth
+   * @role ORGANIZER
+   *
+   * @param id - Event UUID
+   *
+   * @returns {SuccessResponse<Event>}
+   *
+   * @throws {400} BAD_REQUEST - Event is not in DRAFT status
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {403} FORBIDDEN - Authenticated user does not own this event
+   * @throws {404} NOT_FOUND - Event not found
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.OK)
@@ -94,11 +154,20 @@ export class EventsController {
   }
 
   /**
-   * GET /events/near-me
-   * Returns published in-person and hybrid events within a radius of the
-   * provided coordinates. Falls back to the user's saved contact coordinates
-   * if authenticated and no lat/lng is provided.
-   * Optional query params: lat, lng, radius (km), page, per_page.
+   * Return published IN_PERSON and HYBRID events within a radius of the
+   * given coordinates, ordered by distance ascending (Haversine formula).
+   * Provide lat/lng directly, or authenticate and rely on the saved contact
+   * coordinates from the user's profile.
+   *
+   * @route GET /events/near-me
+   * @security BearerAuth (optional — required only when lat/lng are omitted)
+   *
+   * @param query - { lat?, lng?, radius? (km, default 10, max 100), page?, per_page? }
+   *
+   * @returns {SuccessResponse<{ events: NearMeEvent[]; pagination: Pagination; coordinates_used: { lat, lng } }>}
+   *
+   * @throws {400} BAD_REQUEST - No lat/lng provided and user has no saved coordinates
+   * @throws {401} UNAUTHORIZED - No lat/lng provided and no auth token
    */
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
@@ -112,10 +181,24 @@ export class EventsController {
   }
 
   /**
-   * PUT /events/:id/ticketing
-   * Sets ticketing configuration — free or paid with tiers.
-   * Replaces all existing ticket tiers (blocked if any have sales).
-   * Requires ORGANIZER role and ownership.
+   * Set the ticketing configuration for an event. Atomically replaces all
+   * existing ticket tiers. FREE events get a single free tier; PAID events
+   * require an explicit tiers array. Blocked if any existing tier has sales.
+   *
+   * @route PUT /events/:id/ticketing
+   * @security BearerAuth
+   * @role ORGANIZER
+   *
+   * @param id  - Event UUID
+   * @param dto - { type: 'free'|'paid', tiers?: TicketTierDto[] }
+   *
+   * @returns {SuccessResponse<Event>}
+   *
+   * @throws {400} BAD_REQUEST - One or more existing tiers already have sales
+   * @throws {400} BAD_REQUEST - Event is COMPLETED or CANCELLED
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {403} FORBIDDEN - Authenticated user does not own this event
+   * @throws {404} NOT_FOUND - Event not found
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.OK)
@@ -132,9 +215,21 @@ export class EventsController {
   }
 
   /**
-   * GET /events/:id/review
-   * Returns full event object with isComplete and missingFields.
-   * Requires ORGANIZER role and ownership.
+   * Return the full event object plus a completeness check. isComplete is
+   * true only when all required fields are present and valid. missingFields
+   * lists exactly what is blocking publication.
+   *
+   * @route GET /events/:id/review
+   * @security BearerAuth
+   * @role ORGANIZER
+   *
+   * @param id - Event UUID
+   *
+   * @returns {SuccessResponse<Event & { isComplete: boolean; missingFields: string[] }>}
+   *
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {403} FORBIDDEN - Authenticated user does not own this event
+   * @throws {404} NOT_FOUND - Event not found
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.OK)
@@ -147,9 +242,22 @@ export class EventsController {
   }
 
   /**
-   * POST /events/:id/publish
-   * Publishes a DRAFT event.
-   * Requires ORGANIZER role and ownership.
+   * Publish a DRAFT event, making it publicly visible. Requires at least
+   * one ticket type to be configured before publishing.
+   *
+   * @route POST /events/:id/publish
+   * @security BearerAuth
+   * @role ORGANIZER
+   *
+   * @param id - Event UUID
+   *
+   * @returns {SuccessResponse<Event>}
+   *
+   * @throws {400} BAD_REQUEST - Event is not in DRAFT status
+   * @throws {400} BAD_REQUEST - No ticket types configured
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {403} FORBIDDEN - Authenticated user does not own this event
+   * @throws {404} NOT_FOUND - Event not found
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.OK)
@@ -162,9 +270,21 @@ export class EventsController {
   }
 
   /**
-   * DELETE /events/:id
-   * Deletes a DRAFT event permanently.
-   * Requires ORGANIZER role and ownership.
+   * Permanently delete a DRAFT event. Cannot delete PUBLISHED, CANCELLED,
+   * or COMPLETED events.
+   *
+   * @route DELETE /events/:id
+   * @security BearerAuth
+   * @role ORGANIZER
+   *
+   * @param id - Event UUID
+   *
+   * @returns 204 No Content
+   *
+   * @throws {400} BAD_REQUEST - Event is not in DRAFT status
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {403} FORBIDDEN - Authenticated user does not own this event
+   * @throws {404} NOT_FOUND - Event not found
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.OK)
@@ -175,12 +295,24 @@ export class EventsController {
     await this.eventsService.deleteEvent(req.user.id, id);
   }
 
-  // ─── Ticket Management (Organizer) ──────────────────────────────────────
-
   /**
-   * POST /events/:id/tickets
-   * Adds a ticket type to an event.
-   * Requires ORGANIZER role and ownership.
+   * Add a new ticket type to an event. Use this for incremental additions;
+   * use PUT /events/:id/ticketing to replace all tiers at once.
+   * Can only add tickets to DRAFT or PUBLISHED events.
+   *
+   * @route POST /events/:id/tickets
+   * @security BearerAuth
+   * @role ORGANIZER
+   *
+   * @param id  - Event UUID
+   * @param dto - { name, price, quantity }
+   *
+   * @returns {SuccessResponse<Ticket>}
+   *
+   * @throws {400} BAD_REQUEST - Event is CANCELLED or COMPLETED
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {403} FORBIDDEN - Authenticated user does not own this event
+   * @throws {404} NOT_FOUND - Event not found
    */
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.CREATED)
@@ -197,9 +329,22 @@ export class EventsController {
   }
 
   /**
-   * PATCH /events/:eventId/tickets/:ticketId
-   * Updates a ticket type.
-   * Requires ORGANIZER role and ownership.
+   * Update a ticket type. Cannot reduce quantity below the number of
+   * tickets already sold.
+   *
+   * @route PATCH /events/:eventId/tickets/:ticketId
+   * @security BearerAuth
+   * @role ORGANIZER
+   *
+   * @param ticketId - Ticket UUID
+   * @param dto      - Partial subset of ticket fields { name?, price?, quantity? }
+   *
+   * @returns {SuccessResponse<Ticket>}
+   *
+   * @throws {400} BAD_REQUEST - New quantity is less than the number already sold
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {403} FORBIDDEN - Authenticated user does not own this ticket's event
+   * @throws {404} NOT_FOUND - Ticket not found
    */
   @Patch(':eventId/tickets/:ticketId')
   async updateTicket(
@@ -213,9 +358,21 @@ export class EventsController {
   }
 
   /**
-   * DELETE /events/:eventId/tickets/:ticketId
-   * Deletes a ticket type.
-   * Requires ORGANIZER role and ownership.
+   * Delete a ticket type. Blocked if any tickets of this type have already
+   * been sold.
+   *
+   * @route DELETE /events/:eventId/tickets/:ticketId
+   * @security BearerAuth
+   * @role ORGANIZER
+   *
+   * @param ticketId - Ticket UUID
+   *
+   * @returns 204 No Content
+   *
+   * @throws {400} BAD_REQUEST - Tickets of this type have already been sold
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {403} FORBIDDEN - Authenticated user does not own this ticket's event
+   * @throws {404} NOT_FOUND - Ticket not found
    */
   @Delete(':eventId/tickets/:ticketId')
   @HttpCode(204)

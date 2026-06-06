@@ -19,9 +19,21 @@ export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}
 
   /**
-   * POST /orders
-   * Creates a PENDING order and reserves tickets.
-   * Requires authenticated user.
+   * Create a PENDING order and immediately reserve the requested tickets.
+   * Ticket availability is decremented at this point. Payment is expected
+   * to follow; stale PENDING orders are cleaned up by a scheduled job.
+   *
+   * @route POST /orders
+   * @security BearerAuth
+   *
+   * @param dto - { eventId, items: [{ ticketId, quantity }] }
+   *
+   * @returns {SuccessResponse<Order>}
+   *
+   * @throws {400} BAD_REQUEST - A ticket does not belong to this event
+   * @throws {400} BAD_REQUEST - Requested quantity exceeds available stock
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {404} NOT_FOUND - Event not found or not published
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
@@ -32,9 +44,20 @@ export class OrdersController {
   }
 
   /**
-   * POST /orders/:id/confirm
-   * Confirms an order after successful payment.
-   * Accepts a payment reference from the payment gateway.
+   * Confirm a PENDING order after successful payment. Stores the payment
+   * gateway transaction reference and moves the order status to CONFIRMED.
+   *
+   * @route POST /orders/:id/confirm
+   * @security BearerAuth
+   *
+   * @param id               - Order UUID
+   * @param paymentReference - Payment gateway transaction reference (body field)
+   *
+   * @returns {SuccessResponse<Order>}
+   *
+   * @throws {400} BAD_REQUEST - Order is not in PENDING status
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {404} NOT_FOUND - Order not found
    */
   @Post(':id/confirm')
   @HttpCode(HttpStatus.OK)
@@ -48,9 +71,21 @@ export class OrdersController {
   }
 
   /**
-   * POST /orders/:id/cancel
-   * Cancels a PENDING order and releases reserved tickets.
-   * Requires ownership.
+   * Cancel a PENDING order and release the reserved tickets back to
+   * availability. Only PENDING orders can be self-cancelled — CONFIRMED
+   * orders require a separate refund flow.
+   *
+   * @route POST /orders/:id/cancel
+   * @security BearerAuth
+   *
+   * @param id - Order UUID
+   *
+   * @returns {SuccessResponse<null>}
+   *
+   * @throws {400} BAD_REQUEST - Order is not in PENDING status
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   * @throws {403} FORBIDDEN - Authenticated user does not own this order
+   * @throws {404} NOT_FOUND - Order not found
    */
   @Post(':id/cancel')
   @HttpCode(HttpStatus.OK)
