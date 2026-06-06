@@ -20,14 +20,15 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('production'),
   PASSWORD_RESET_EXPIRY_MINUTES: z.coerce.number().default(60),
   EMAIL_VERIFICATION_SECRET: z.string(),
-  FRONTEND_URL: z.string(), //.url(),
-  MAIL_HOST: z.string(),
-  MAIL_PORT: z.coerce.number().default(587),
-  MAIL_SECURE: z.coerce.boolean().default(false),
-  MAIL_USER: z.string(),
+  FRONTEND_URL: z.url(),
   MAIL_PASS: z.string(),
   MAIL_FROM: z.string().email(),
   MAIL_FROM_NAME: z.string().default('App'),
+  GOOGLE_CLIENT_ID: z.string(),
+  GOOGLE_CLIENT_SECRET: z.string(),
+  GOOGLE_CALLBACK_URL: z.string().url(),
+  ADMIN_EMAIL: z.email(),
+  ADMIN_PASSWORD: z.string(),
 });
 
 const parsed = schema.safeParse(process.env);

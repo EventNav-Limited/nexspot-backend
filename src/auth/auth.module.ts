@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
-import { AuthController } from './auth.controller.js';
-import { AuthService } from './auth.service.js';
-import { UsersModule } from '../users/users.module.js';
 import { JwtModule } from '@nestjs/jwt';
-import { JwtStrategy } from './strategies/jwt.strategies.js';
+import { AuthService } from './auth.service.js';
 import { TokenService } from './token.service.js';
+import { AuthController } from './auth.controller.js';
+import { UsersModule } from '../users/users.module.js';
 import { PrismaService } from '../config/prisma.service.js';
+import { JwtStrategy } from './strategies/jwt.strategies.js';
+import { GoogleStrategy } from './strategies/google.strategies.js';
 import { EmailVerificationLib } from '../lib/email-verification.lib.js';
 
 @Module({
@@ -16,6 +17,7 @@ import { EmailVerificationLib } from '../lib/email-verification.lib.js';
     JwtStrategy,
     TokenService,
     PrismaService,
+    GoogleStrategy,
     EmailVerificationLib,
   ],
 })

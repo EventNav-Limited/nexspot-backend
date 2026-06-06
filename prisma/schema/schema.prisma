@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ----------------------
+// MODELS [seeded]
+// ----------------------
+
+/// Predefined interest/category catalog
+model Interest {
+  id   String @id // e.g. "music_concerts", "tech_conferences" — not uuid, human-readable slug
+  name String @unique // e.g. "Music Concerts"
+
+  users              UserInterest[]
+  interestcategories Interestcategory[]
+
+  @@map("interests")
+}
+
+// ----------------------
+// ENUMS
+// ----------------------
+
+enum Role {
+  ATTENDEE
+  ORGANIZER
+  ADMIN
+}
+
+enum AuthProvider {
+  LOCAL
+  GOOGLE
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  REFUNDED
+}
+
+enum EventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+enum EventFormat {
+  IN_PERSON
+  ONLINE
+  HYBRID
+}
+
+enum ElevationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}

@@ -1,15 +1,16 @@
-import * as bcrypt from 'bcrypt';
+import argon2 from 'argon2';
+import { env } from '../config/env.js';
 import { JwtService } from '@nestjs/jwt';
 import { Injectable } from '@nestjs/common';
+import { LoginDto } from './dto/login.dto.js';
+import { TokenService } from './token.service.js';
+import { mapUser } from '../users/users.mapper.js';
 import { RegisterDto } from './dto/register.dto.js';
 import { UsersHelper } from '../users/users.helper.js';
-import { LoginDto } from './dto/login.dto.js';
-import { ForgotPasswordDto } from './dto/forgot-password.dto.js';
-import { TokenService } from './token.service.js';
-import { env } from '../config/env.js';
 import {
   BadRequestException,
   ConflictException,
+  InternalException,
   UnauthorizedException,
 } from '../lib/error.lib.js';
 import { EmailVerificationLib } from '../lib/email-verification.lib.js';
@@ -32,7 +33,7 @@ export class AuthService {
       throw new ConflictException('An account with this email already exists');
 
     // 2. Hash the password (using 10 salt rounds)
-    const hashedPassword = await bcrypt.hash(dto.password, 12);
+    const hashedPassword = await argon2.hash(dto.password);
 
     // 3. Create the new user
     const newUser = await this.usersHelper.create({
@@ -56,10 +57,9 @@ export class AuthService {
 
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const salt = await bcrypt.genSalt(12);
-    const tokenHash = await bcrypt.hash(refresh_token, salt);
+    const tokenHash = await argon2.hash(refresh_token);
 
-    const newSession = this.tokenService.createSession({
+    const newSession = await this.tokenService.createSession({
       deviceId,
       tokenHash,
       user: {
@@ -68,28 +68,40 @@ export class AuthService {
       expiresAt: expiry,
     });
 
-    await this.emailVerificationLib.sendRegistrationVerification(
-      newUser.email,
-      newUser.firstName,
-    );
+    // Send email — rollback user + session if it fails
+    try {
+      await this.emailVerificationLib.sendRegistrationVerification(
+        newUser.id,
+        newUser.email,
+        newUser.firstName,
+      );
+    } catch (error) {
+      console.log(error);
+      await this.usersHelper.delete(newUser.id); // cascades session if set up
+      throw new InternalException(
+        'Failed to send verification email. Please try again.',
+      );
+    }
 
     // 4. Return JWT (optional: some APIs require manual login after register)
     return {
       refresh_token,
-      device_id: (await newSession).deviceId,
+      device_id: newSession.deviceId,
       payload: {
-        user: {
-          id: newUser.id,
-          first_name: dto.firstName,
-          last_name: dto.lastName,
-          email: newUser.email,
-          role: newUser.role,
-          profile_photo_url: newUser.profilePhotoURL,
-          created_at: newUser.createdAt,
-        },
+        user: mapUser(newUser),
         access_token,
       },
     };
+  }
+
+  async verify(token: string) {
+    const { userId, purpose } = this.emailVerificationLib.verifyToken(token);
+
+    if (purpose !== 'registration') {
+      throw new BadRequestException('Invalid verification token');
+    }
+
+    await this.usersHelper.update(userId, { isActive: true });
   }
 
   // ─── login ──────────────────────────────────────────────────────────────
@@ -101,10 +113,40 @@ export class AuthService {
       throw new UnauthorizedException('Invalid Email Or Password');
     }
 
+    // After finding the user
+    if (user.authProvider === 'GOOGLE') {
+      throw new UnauthorizedException(
+        'This account uses Google sign-in. Please login with Google.',
+      );
+    }
+
+    if (!user.password) {
+      throw new UnauthorizedException(
+        'This account uses Google sign-in. Please login with Google.',
+      );
+    }
+
     // 2. Compare passwords
-    const isMatch = await bcrypt.compare(dto.password, user.password);
+    const isMatch = await argon2.verify(user.password, dto.password);
+
     if (!isMatch) {
       throw new UnauthorizedException('Invalid Email Or Password');
+    }
+
+    if (!user.isActive) {
+      // Send email — rollback user + session if it fails
+      try {
+        await this.emailVerificationLib.sendRegistrationVerification(
+          user.id,
+          user.email,
+          user.firstName,
+        );
+        throw new UnauthorizedException(
+          'Account not verified. please verify your account',
+        );
+      } catch (error) {
+        console.log(error);
+      }
     }
 
     const access_token = this.tokenService.generateAccessToken(user.id);
@@ -115,8 +157,7 @@ export class AuthService {
 
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
 
-    const salt = await bcrypt.genSalt(12);
-    const tokenHash = await bcrypt.hash(refresh_token, salt);
+    const tokenHash = await argon2.hash(refresh_token);
 
     await this.tokenService.updateSession({
       deviceId,
@@ -131,15 +172,67 @@ export class AuthService {
     return {
       refresh_token,
       payload: {
-        user: {
-          id: user.id,
-          first_name: user.firstName,
-          last_name: user.lastName,
-          email: user.email,
-          role: user.role,
-          profile_photo_url: `https://ui-avatars.com/api/?name=${user.firstName}+${user.lastName}`,
-          created_at: user.createdAt,
-        },
+        user: mapUser(user),
+        access_token,
+      },
+    };
+  }
+
+  // ─── google-login ──────────────────────────────────────────────────────────────
+  async googleLogin(googleUser: {
+    googleId: string;
+    email: string;
+    firstName: string;
+    lastName: string;
+    picture: string;
+  }) {
+    // 1. Check if user exists by googleId
+    let user = await this.usersHelper.findByGoogleId(googleUser.googleId);
+
+    // 2. If not, check if email already exists as a LOCAL account
+    if (!user) {
+      const existingUser = await this.usersHelper.findByEmail(googleUser.email);
+      if (existingUser) {
+        throw new ConflictException(
+          'An account with this email already exists. Please login with your password.',
+        );
+      }
+
+      // 3. Create new Google user
+      user = await this.usersHelper.create({
+        email: googleUser.email.toLowerCase(),
+        firstName: googleUser.firstName,
+        lastName: googleUser.lastName,
+        profilePhotoURL: googleUser.picture,
+        googleId: googleUser.googleId,
+        authProvider: 'GOOGLE',
+        isActive: true,
+      });
+    }
+
+    // 4. Generate tokens
+    const deviceId = crypto.randomUUID();
+    const access_token = this.tokenService.generateAccessToken(user.id);
+    const refresh_token = this.tokenService.generateRefreshToken(
+      user.id,
+      deviceId,
+    );
+
+    const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+    const tokenHash = await argon2.hash(refresh_token);
+
+    await this.tokenService.createSession({
+      deviceId,
+      tokenHash,
+      user: { connect: { id: user.id } },
+      expiresAt: expiry,
+    });
+
+    return {
+      refresh_token,
+      device_id: deviceId,
+      payload: {
+        user: mapUser(user),
         access_token,
       },
     };
@@ -174,7 +267,7 @@ export class AuthService {
     }
 
     // 4. Validate token hash
-    const valid = await bcrypt.compare(refresh_token, session.tokenHash);
+    const valid = await argon2.verify(session.tokenHash, refresh_token);
     if (!valid) {
       throw new UnauthorizedException('Refresh token reuse detected');
     }
@@ -188,11 +281,12 @@ export class AuthService {
   // ─── forgot-password ──────────────────────────────────────────────────────────────
 
   // To be implementes when mail service is decided
-  async forgotPassword(dto: ForgotPasswordDto) {
-    const user = await this.usersHelper.findByEmail(dto.email);
-    if (!user) return;
+  async forgotPassword(dto: string) {
+    if (!dto) throw new BadRequestException('Invalid email');
+    const user = await this.usersHelper.findByEmail(dto);
+    if (!user) throw new BadRequestException('Invalid email');
 
-    await this.emailVerificationLib.sendForgotPasswordEmail(dto.email, user.id);
+    await this.emailVerificationLib.sendForgotPasswordEmail(dto, user.id);
   }
 
   // ─── reset-password ──────────────────────────────────────────────────────────────
@@ -204,8 +298,11 @@ export class AuthService {
       throw new BadRequestException('Invalid token purpose');
     }
 
-    const hash = await bcrypt.hash(newPassword, 12);
+    const hash = await argon2.hash(newPassword);
     await this.usersHelper.update(userId, { password: hash });
+
+    // TODO: Send confirmation email.
+    // content: password has been reset. you can now login with new password
   }
 
   // ─── logout ──────────────────────────────────────────────────────────────
