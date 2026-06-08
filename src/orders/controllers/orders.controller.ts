@@ -8,10 +8,10 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { OrdersService } from './orders.service.js';
-import { successResponse } from '../lib/response.lib.js';
-import { CreateOrderDto } from './dto/create-order.dto.js';
-import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
+import { OrdersService } from '../services/orders.service.js';
+import { successResponse } from '../../lib/response.lib.js';
+import { CreateOrderDto } from '../dto/create-order.dto.js';
+import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard.js';
 
 @Controller('orders')
 @UseGuards(JwtAuthGuard)

@@ -1,8 +1,8 @@
 import { Injectable } from '@nestjs/common';
-import { CreateCategoryDto } from './dto/create-category.dto.js';
-import { CategoriesHelper } from './categories.helper.js';
-import { slugify } from '../lib/regex.lib.js';
-import { ConflictException, NotFoundException } from '../lib/error.lib.js';
+import { CreateCategoryDto } from '../dto/create-category.dto.js';
+import { CategoriesHelper } from '../categories.helper.js';
+import { slugify } from '../../lib/regex.lib.js';
+import { ConflictException, NotFoundException } from '../../lib/error.lib.js';
 
 @Injectable()
 export class CategoriesService {

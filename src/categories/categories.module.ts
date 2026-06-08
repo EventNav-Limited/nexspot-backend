@@ -1,9 +1,9 @@
 import { Module } from '@nestjs/common';
-import { CategoriesService } from './categories.service.js';
+import { CategoriesService } from './services/categories.service.js';
 import {
   CategoriesController,
   FormatCntroller,
-} from './categories.controller.js';
+} from './controllers/categories.controller.js';
 import { CategoriesHelper } from './categories.helper.js';
 import { ConfigModule } from '../config/config.module.js';
 

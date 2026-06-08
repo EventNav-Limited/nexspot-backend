@@ -2,9 +2,9 @@
 
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { env } from '../config/env.js';
-import { PrismaService } from '../config/prisma.service.js';
-import { Prisma } from 'src/generated/prisma/client.js';
+import { env } from '../../config/env.js';
+import { PrismaService } from '../../config/prisma.service.js';
+import { Prisma } from '../../generated/prisma/client.js';
 
 @Injectable()
 export class TokenService {

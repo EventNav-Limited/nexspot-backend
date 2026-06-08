@@ -9,13 +9,13 @@ import {
   HttpStatus,
   UseGuards,
 } from '@nestjs/common';
-import { AdminService } from './admin.service.js';
-import { successResponse } from '../lib/response.lib.js';
-import { RejectElevationDto } from './dto/review-elevation.dto.js';
-import { Role } from '../generated/prisma/enums.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
-import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
-import { RolesGuard } from '../auth/guard/role.guard.js';
+import { AdminService } from '../services/admin.service.js';
+import { successResponse } from '../../lib/response.lib.js';
+import { RejectElevationDto } from '../dto/review-elevation.dto.js';
+import { Role } from '../../generated/prisma/enums.js';
+import { Roles } from '../../auth/decorators/roles.decorator.js';
+import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard.js';
+import { RolesGuard } from '../../auth/guard/role.guard.js';
 
 @Controller('admin')
 @Roles(Role.ADMIN)

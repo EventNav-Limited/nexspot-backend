@@ -1,11 +1,11 @@
 // src/onboarding/onboarding.service.ts
 
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../config/prisma.service.js';
-import { UsersHelper } from '../users/users.helper.js';
-import { SaveInterestsDto } from './dto/save-interests.dto.js';
-import { SaveLocationDto } from './dto/save-location.dto.js';
-import { getTimezoneFromLocation } from '../lib/timezone.lib.js';
+import { PrismaService } from '../../config/prisma.service.js';
+import { UsersHelper } from '../../users/users.helper.js';
+import { SaveInterestsDto } from '../dto/save-interests.dto.js';
+import { SaveLocationDto } from '../dto/save-location.dto.js';
+import { getTimezoneFromLocation } from '../../lib/timezone.lib.js';
 
 @Injectable()
 export class OnboardingService {

@@ -10,11 +10,11 @@ import {
   Req,
   UseGuards,
 } from '@nestjs/common';
-import { OnboardingService } from './onboarding.service.js';
-import { SaveInterestsDto } from './dto/save-interests.dto.js';
-import { SaveLocationDto } from './dto/save-location.dto.js';
-import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
-import { successResponse } from '../lib/response.lib.js';
+import { OnboardingService } from '../services/onboarding.service.js';
+import { SaveInterestsDto } from '../dto/save-interests.dto.js';
+import { SaveLocationDto } from '../dto/save-location.dto.js';
+import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard.js';
+import { successResponse } from '../../lib/response.lib.js';
 
 @UseGuards(JwtAuthGuard)
 @Controller('onboarding')

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { BadRequestException, NotFoundException } from '../lib/error.lib.js';
-import { PrismaService } from '../config/prisma.service.js';
-import { Role } from '../generated/prisma/enums.js';
+import { BadRequestException, NotFoundException } from '../../lib/error.lib.js';
+import { PrismaService } from '../../config/prisma.service.js';
+import { Role } from '../../generated/prisma/enums.js';
 
 @Injectable()
 export class AdminService {

@@ -1,12 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../config/prisma.service.js';
+import { PrismaService } from '../../config/prisma.service.js';
 import {
   BadRequestException,
   ForbiddenException,
   NotFoundException,
-} from '../lib/error.lib.js';
-import { EventStatus, OrderStatus } from '../generated/prisma/enums.js';
-import { CreateOrderDto } from './dto/create-order.dto.js';
+} from '../../lib/error.lib.js';
+import { EventStatus, OrderStatus } from '../../generated/prisma/enums.js';
+import { CreateOrderDto } from '../dto/create-order.dto.js';
 
 @Injectable()
 export class OrdersService {

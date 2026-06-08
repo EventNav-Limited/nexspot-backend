@@ -9,13 +9,13 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { CategoriesService } from './categories.service.js';
-import { CreateCategoryDto } from './dto/create-category.dto.js';
-import { successResponse } from '../lib/response.lib.js';
-import { RolesGuard } from '../auth/guard/role.guard.js';
-import { JwtAuthGuard } from '../auth/guard/jwt-auth.guard.js';
-import { Roles } from '../auth/decorators/roles.decorator.js';
-import { Role } from '../generated/prisma/client.js';
+import { CategoriesService } from '../services/categories.service.js';
+import { CreateCategoryDto } from '../dto/create-category.dto.js';
+import { successResponse } from '../../lib/response.lib.js';
+import { RolesGuard } from '../../auth/guard/role.guard.js';
+import { JwtAuthGuard } from '../../auth/guard/jwt-auth.guard.js';
+import { Roles } from '../../auth/decorators/roles.decorator.js';
+import { Role } from '../../generated/prisma/client.js';
 
 @UseGuards(JwtAuthGuard)
 @Controller('categories')
