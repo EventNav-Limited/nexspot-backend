@@ -64,9 +64,10 @@ export class OrdersController {
   async confirmOrder(
     @Param('id') id: string,
     @Body('paymentReference') paymentReference: string,
+    @Req() req,
   ) {
     return successResponse(
-      await this.ordersService.confirmOrder(id, paymentReference),
+      await this.ordersService.confirmOrder(req.user.id, id, paymentReference),
     );
   }
 

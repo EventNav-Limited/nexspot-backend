@@ -127,7 +127,6 @@ export class AuthController {
   @Get('verify-email')
   @HttpCode(HttpStatus.OK)
   async verify(@Query('token') token: string) {
-    console.log('hohoho');
     await this.authService.verify(token);
     return successResponse(null);
   }

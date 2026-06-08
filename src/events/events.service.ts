@@ -10,37 +10,72 @@ import { EventFormat, EventStatus } from '../generated/prisma/enums.js';
 import { GetEventsDto, PriceFilter, SortOrder } from './dto/get-events.dto.js';
 import { PrismaService } from '../config/prisma.service.js';
 import { CreateTicketDto } from './dto/create-ticket.dto.js';
-import {
-  formatDateDisplay,
-  generateSlug,
-  mapEvent,
-  resolveDateRange,
-} from './event.helpers.js';
+import { generateSlug, mapEvent, resolveDateRange } from './event.helpers.js';
 import { GetEventsNearMeDto } from './dto/get-events-near-me.dto.js';
 import { UpdateEventDto } from './dto/update-event.dto.js';
 import { UpdateTicketDto } from './dto/update-ticket.dto.js';
 import { SetTicketingDto, TicketType } from './dto/set-ticketing.dto.js';
+import {
+  formatDateDisplay,
+  getTimezoneFromCountry,
+  getTimezoneFromLocation,
+  localToUTC,
+} from '../lib/timezone.lib.js';
 
 @Injectable()
 export class EventsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  // ─── Timezone helper ────────────────────────────────────────────────────────
+
+  /**
+   * Returns the IANA timezone for a user from their Contact record.
+   * Falls back to the country-derived timezone, then 'UTC'.
+   */
+  private async getUserTimezone(userId: string): Promise<string> {
+    const contact = await this.prisma.contact.findUnique({
+      where: { userId },
+      select: { timezone: true, city: true, country: true },
+    });
+    if (contact?.timezone) return contact.timezone;
+    return getTimezoneFromLocation(contact?.city, contact?.country);
+  }
 
   /**
    * Creates a new event in DRAFT status.
    * Only organizers can call this.
    */
   async createEvent(organizerId: string, dto: CreateEventDto) {
+    const timezone = await this.getUserTimezone(organizerId);
+
+    // Convert input dates from organizer's local timezone to UTC
+    const startDate = localToUTC(dto.startDate.toISOString(), timezone);
+    const endDate = localToUTC(dto.endDate.toISOString(), timezone);
+
     // validate that end date is after start date
-    if (dto.endDate <= dto.startDate) {
+    if (endDate <= startDate) {
       throw new BadRequestException('End date must be after start date');
     }
 
-    // online events must have a link; in-person events must have a location
+    // online events must have a link; in-person events must have a location + coordinates
     if (dto.deliveryMode === EventFormat.ONLINE && !dto.onlineLink) {
       throw new BadRequestException('Online events must have an online link');
     }
-    if (dto.deliveryMode === EventFormat.IN_PERSON && !dto.location) {
-      throw new BadRequestException('In-person events must have a location');
+    if (dto.deliveryMode === EventFormat.IN_PERSON) {
+      if (!dto.location)
+        throw new BadRequestException('In-person events must have a location');
+      if (dto.latitude == null || dto.longitude == null)
+        throw new BadRequestException(
+          'In-person events must have latitude and longitude for location-based discovery',
+        );
+    }
+    if (dto.deliveryMode === EventFormat.HYBRID) {
+      if (!dto.location)
+        throw new BadRequestException(
+          'Hybrid events must have a physical location',
+        );
+      if (!dto.onlineLink)
+        throw new BadRequestException('Hybrid events must have an online link');
     }
 
     const slug = generateSlug(dto.title);
@@ -50,8 +85,8 @@ export class EventsService {
         title: dto.title,
         slug,
         description: dto.description,
-        startDate: dto.startDate,
-        endDate: dto.endDate,
+        startDate,
+        endDate,
         location: dto.location,
         onlineLink: dto.onlineLink,
         capacity: dto.capacity,
@@ -65,7 +100,7 @@ export class EventsService {
       include: { tickets: true, organizer: true },
     });
 
-    return mapEvent(event);
+    return mapEvent(event, timezone);
   }
 
   /**
@@ -73,9 +108,10 @@ export class EventsService {
    * Cannot update a CANCELLED or COMPLETED event.
    */
   async updateEvent(organizerId: string, eventId: string, dto: UpdateEventDto) {
-    const event = await this.prisma.events.findUnique({
-      where: { id: eventId },
-    });
+    const [event, timezone] = await Promise.all([
+      this.prisma.events.findUnique({ where: { id: eventId } }),
+      this.getUserTimezone(organizerId),
+    ]);
 
     if (!event) throw new NotFoundException('Event not found');
     if (event.organizerId !== organizerId)
@@ -88,17 +124,28 @@ export class EventsService {
         `Cannot update a ${event.status.toLowerCase()} event`,
       );
 
+    // Convert any incoming date strings from organizer's local timezone to UTC
+    const dateOverrides: Record<string, Date> = {};
+    if (dto.startDate)
+      dateOverrides.startDate = localToUTC(
+        dto.startDate.toISOString(),
+        timezone,
+      );
+    if (dto.endDate)
+      dateOverrides.endDate = localToUTC(dto.endDate.toISOString(), timezone);
+
     const updated = await this.prisma.events.update({
       where: { id: eventId },
       data: {
         ...dto,
+        ...dateOverrides,
         // re-generate slug if title changed
         ...(dto.title && { slug: generateSlug(dto.title) }),
       },
       include: { tickets: true, organizer: true },
     });
 
-    return mapEvent(updated);
+    return mapEvent(updated, timezone);
   }
 
   /**
@@ -174,10 +221,13 @@ export class EventsService {
    * missingFields lists exactly what is blocking publishing.
    */
   async reviewEvent(organizerId: string, eventId: string) {
-    const event = await this.prisma.events.findUnique({
-      where: { id: eventId },
-      include: { tickets: true, organizer: true },
-    });
+    const [event, timezone] = await Promise.all([
+      this.prisma.events.findUnique({
+        where: { id: eventId },
+        include: { tickets: true, organizer: true },
+      }),
+      this.getUserTimezone(organizerId),
+    ]);
 
     if (!event) throw new NotFoundException('Event not found');
     if (event.organizerId !== organizerId)
@@ -197,7 +247,7 @@ export class EventsService {
       missingFields.push('online link');
 
     return {
-      ...mapEvent(event),
+      ...mapEvent(event, timezone),
       isComplete: missingFields.length === 0,
       missingFields,
     };
@@ -208,10 +258,13 @@ export class EventsService {
    * Requires at least one ticket type to be defined.
    */
   async publishEvent(organizerId: string, eventId: string) {
-    const event = await this.prisma.events.findUnique({
-      where: { id: eventId },
-      include: { tickets: true },
-    });
+    const [event, timezone] = await Promise.all([
+      this.prisma.events.findUnique({
+        where: { id: eventId },
+        include: { tickets: true },
+      }),
+      this.getUserTimezone(organizerId),
+    ]);
 
     if (!event) throw new NotFoundException('Event');
     if (event.organizerId !== organizerId)
@@ -229,7 +282,7 @@ export class EventsService {
       include: { tickets: true, organizer: true },
     });
 
-    return mapEvent(updated);
+    return mapEvent(updated, timezone);
   }
 
   /**
@@ -238,10 +291,13 @@ export class EventsService {
    * Cannot save as draft if PUBLISHED, CANCELLED, or COMPLETED.
    */
   async saveDraft(organizerId: string, eventId: string) {
-    const event = await this.prisma.events.findUnique({
-      where: { id: eventId },
-      include: { tickets: true, organizer: true },
-    });
+    const [event, timezone] = await Promise.all([
+      this.prisma.events.findUnique({
+        where: { id: eventId },
+        include: { tickets: true, organizer: true },
+      }),
+      this.getUserTimezone(organizerId),
+    ]);
 
     if (!event) throw new NotFoundException('Event not found');
     if (event.organizerId !== organizerId)
@@ -252,7 +308,7 @@ export class EventsService {
       );
 
     // already a draft — nothing to update, just return current state
-    return mapEvent(event);
+    return mapEvent(event, timezone);
   }
 
   /**
@@ -278,7 +334,7 @@ export class EventsService {
   /**
    * Returns paginated published events with filtering and sorting.
    */
-  async getEvents(dto: GetEventsDto) {
+  async getEvents(dto: GetEventsDto, viewerTimezone = 'UTC') {
     const page = Math.max(1, dto.page ?? 1);
     const perPage = Math.min(50, Math.max(1, dto.per_page ?? 20));
     const skip = (page - 1) * perPage;
@@ -350,7 +406,7 @@ export class EventsService {
       this.prisma.events.count({ where }),
     ]);
 
-    const mapped = events.map((e) => mapEvent(e));
+    const mapped = events.map((e) => mapEvent(e, viewerTimezone));
 
     // sort by price in memory since it's derived from tickets
     if (dto.sort === SortOrder.PRICE_ASC) {
@@ -388,7 +444,11 @@ export class EventsService {
    * Falls back to the user's saved contact coordinates if no lat/lng is provided.
    * Uses the Haversine formula for distance calculation.
    */
-  async getEventsNearMe(userId: string | null, query: GetEventsNearMeDto) {
+  async getEventsNearMe(
+    userId: string | null,
+    query: GetEventsNearMeDto,
+    viewerTimezone = 'UTC',
+  ) {
     // resolve coordinates — query params take priority over saved contact
     let lat = query.lat;
     let lng = query.lng;
@@ -488,7 +548,8 @@ export class EventsService {
         date: {
           start: e.start_date,
           end: e.end_date,
-          display: formatDateDisplay(e.start_date, e.end_date),
+          display: formatDateDisplay(e.start_date, e.end_date, viewerTimezone),
+          timezone: viewerTimezone,
         },
         location: {
           display: e.location,
@@ -510,7 +571,7 @@ export class EventsService {
   /**
    * Returns a single published event by slug.
    */
-  async getEvent(slug: string) {
+  async getEvent(slug: string, viewerTimezone = 'UTC') {
     const event = await this.prisma.events.findUnique({
       where: { slug },
       include: {
@@ -529,7 +590,7 @@ export class EventsService {
     if (!event || event.status !== EventStatus.PUBLISHED)
       throw new NotFoundException('Event not found');
 
-    return mapEvent(event);
+    return mapEvent(event, viewerTimezone);
   }
 
   // ─── Ticket Management (Organizer) ───────────────────────────────────────

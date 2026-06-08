@@ -5,6 +5,7 @@ import { PrismaService } from '../config/prisma.service.js';
 import { UsersHelper } from '../users/users.helper.js';
 import { SaveInterestsDto } from './dto/save-interests.dto.js';
 import { SaveLocationDto } from './dto/save-location.dto.js';
+import { getTimezoneFromLocation } from '../lib/timezone.lib.js';
 
 @Injectable()
 export class OnboardingService {
@@ -30,6 +31,8 @@ export class OnboardingService {
     userId: string,
     dto: SaveLocationDto,
   ): Promise<{ onboarding_completed: boolean }> {
+    const timezone = getTimezoneFromLocation(dto.city, dto.country);
+
     // Upsert contact — create if first time, update if already exists
     await this.prisma.contact.upsert({
       where: { userId },
@@ -37,12 +40,14 @@ export class OnboardingService {
         userId,
         city: dto.city,
         country: dto.country,
+        timezone,
         latitude: dto.latitude,
         longitude: dto.longitude,
       },
       update: {
         city: dto.city,
         country: dto.country,
+        timezone,
         latitude: dto.latitude,
         longitude: dto.longitude,
       },

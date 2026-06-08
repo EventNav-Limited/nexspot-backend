@@ -1,4 +1,5 @@
 import { slugify } from '../lib/regex.lib.js';
+import { formatDateDisplay } from '../lib/timezone.lib.js';
 
 /**
  * Generates a URL-safe slug from a title.
@@ -11,28 +12,19 @@ export function generateSlug(title: string): string {
 
 /**
  * Formats a date range into a human-readable display string.
- * e.g. "Dec 16 | 10:30 AM – 1:30 PM"
+ * Delegates to the timezone-aware implementation in timezone.lib.
+ * @deprecated Import directly from timezone.lib instead.
  */
-export function formatDateDisplay(start: Date, end: Date): string {
-  const dateStr = start.toLocaleDateString('en-GB', {
-    month: 'short',
-    day: 'numeric',
-  });
-  const startTime = start.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-  const endTime = end.toLocaleTimeString('en-US', {
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-  return `${dateStr} | ${startTime} – ${endTime}`;
-}
+export { formatDateDisplay } from '../lib/timezone.lib.js';
 
 /**
  * Maps a raw event from DB into the API response shape.
+ *
+ * @param event - Raw Prisma event record (with tickets and organizer included)
+ * @param viewerTimezone - IANA timezone of the requesting user (default: 'UTC').
+ *   Date display strings are formatted in this timezone.
  */
-export function mapEvent(event: any) {
+export function mapEvent(event: any, viewerTimezone = 'UTC') {
   const tickets = event.tickets ?? [];
 
   // determine if the event is free or paid and the price range
@@ -52,9 +44,14 @@ export function mapEvent(event: any) {
     format: event.deliveryMode,
     status: event.status.toLowerCase(),
     date: {
-      start: event.startDate,
-      end: event.endDate,
-      display: formatDateDisplay(event.startDate, event.endDate),
+      start: event.startDate, // always UTC ISO — frontend can reformat
+      end: event.endDate, // always UTC ISO
+      display: formatDateDisplay(
+        event.startDate,
+        event.endDate,
+        viewerTimezone,
+      ),
+      timezone: viewerTimezone, // IANA timezone used for the display string
     },
     location: event.location ? { display: event.location } : null,
     online_link: event.onlineLink ?? null,

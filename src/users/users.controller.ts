@@ -27,7 +27,7 @@ import { RolesGuard } from '../auth/guard/role.guard.js';
 @Controller('me')
 @UseGuards(JwtAuthGuard)
 export class UsersController {
-  constructor(private usersService: UsersService) { }
+  constructor(private usersService: UsersService) {}
 
   /**
    * Return the authenticated user's profile.
@@ -177,10 +177,29 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.CREATED)
   @Roles(Role.ATTENDEE)
-  @HttpCode(201)
   async requestElevation(@Body() dto: RequestElevationDto, @Req() req) {
     return successResponse(
       await this.usersService.requestElevation(req.user.id, dto.reason),
+    );
+  }
+
+  /**
+   * Return the authenticated user's own elevation request(s), ordered
+   * oldest first. A user can only ever have one request at a time (upserted
+   * on each submission), so the array will contain at most one entry.
+   *
+   * @route GET /me/elevation-request
+   * @security BearerAuth
+   *
+   * @returns {SuccessResponse<{ requests: ElevationRequest[] }>}
+   *
+   * @throws {401} UNAUTHORIZED - Missing or invalid access token
+   */
+  @Get('elevation-request')
+  @HttpCode(HttpStatus.OK)
+  async getElevationRequest(@Req() req) {
+    return successResponse(
+      await this.usersService.elevationRequest(req.user.id),
     );
   }
 

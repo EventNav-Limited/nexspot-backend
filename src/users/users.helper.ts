@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Users } from '../generated/prisma/client.js';
 import { PrismaService } from '../config/prisma.service.js';
+import { formatTimestamp } from '../lib/timezone.lib.js';
 
 @Injectable()
 export class UsersHelper {
@@ -55,27 +56,18 @@ export class UsersHelper {
     });
   }
 
-  mapRequest(request: any) {
+  mapRequest(request: any, timezone = 'UTC') {
     return {
       id: request.id,
-      createdAt: this.formatDateDisplay(request.createdAt),
+      createdAt: formatTimestamp(request.createdAt, timezone),
       status: request.status,
-      reviewedAt: request.reviewedAt,
+      reviewedAt: request.reviewedAt
+        ? formatTimestamp(request.reviewedAt, timezone)
+        : null,
       reviewNote: request.reviewNote,
     };
   }
 
   // TODO: Fix timezone for input and output
-  //
-  formatDateDisplay(date: Date): string {
-    const dateStr = date.toLocaleDateString('en-GB', {
-      month: 'short',
-      day: 'numeric',
-    });
-    const time = date.toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-    });
-    return `${dateStr} | ${time}`;
-  }
+  // formatDateDisplay is now handled by timezone.lib.ts
 }

@@ -77,7 +77,7 @@ export class CategoriesController {
    */
   @Get('/:id')
   @HttpCode(HttpStatus.OK)
-  async find(@Param(':id') id: string) {
+  async find(@Param('id') id: string) {
     return successResponse(await this.categoriesService.findOne(id));
   }
 

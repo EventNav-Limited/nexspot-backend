@@ -36,6 +36,7 @@ model Contact {
   phoneNumber String? @unique @map("phone_number")
   city        String?
   country     String?
+  timezone    String? // IANA timezone e.g. "Africa/Lagos"
   latitude    Float?
   longitude   Float?
 

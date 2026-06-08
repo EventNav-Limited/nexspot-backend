@@ -221,6 +221,8 @@ An `ATTENDEE` who wants to create events must request promotion to `ORGANIZER`. 
 ```
 POST /me/elevation-request
       ↓
+GET  /me/elevation-request   ← check current status
+      ↓
   (Admin reviews in admin panel)
       ↓
   User role changes to ORGANIZER (if approved)
@@ -229,9 +231,10 @@ POST /me/elevation-request
 | Step | Endpoint | Who | What happens |
 |------|----------|-----|--------------|
 | 1 | `POST /me/elevation-request` | Attendee | Submits a `reason` (min 20 chars). Creates a `PENDING` elevation request. Only one pending request is allowed at a time. |
-| 2 | `GET /admin/elevation-requests?status=PENDING` | Admin | Admin views all pending requests. |
-| 3a | `PATCH /admin/elevation-requests/:id/approve` | Admin | Approves the request. User's role is atomically updated to `ORGANIZER`. |
-| 3b | `PATCH /admin/elevation-requests/:id/reject` | Admin | Rejects with an optional `reviewNote`. User can reapply. |
+| 2 | `GET /me/elevation-request` | Attendee | Polls or checks the current status of their request (`PENDING`, `APPROVED`, or `REJECTED`). |
+| 3 | `GET /admin/elevation-requests?status=PENDING` | Admin | Admin views all pending requests. |
+| 4a | `PATCH /admin/elevation-requests/:id/approve` | Admin | Approves the request. User's role is atomically updated to `ORGANIZER`. |
+| 4b | `PATCH /admin/elevation-requests/:id/reject` | Admin | Rejects with an optional `reviewNote`. User can reapply. |
 
 ---
 
@@ -538,30 +541,31 @@ Below is a bird's-eye view of the full application lifecycle, combining all flow
 | 19 | Ticketing | `POST` | `/orders/:id/cancel` | Bearer | — |
 | 20 | My Orders | `GET` | `/me/orders` | Bearer | — |
 | 21 | Elevation | `POST` | `/me/elevation-request` | Bearer | ATTENDEE |
-| 22 | Elevation (Admin) | `GET` | `/admin/elevation-requests` | Bearer | ADMIN |
-| 23 | Elevation (Admin) | `PATCH` | `/admin/elevation-requests/:id/approve` | Bearer | ADMIN |
-| 24 | Elevation (Admin) | `PATCH` | `/admin/elevation-requests/:id/reject` | Bearer | ADMIN |
-| 25 | Event Creation | `POST` | `/events` | Bearer | ORGANIZER |
-| 26 | Event Creation | `PATCH` | `/events/:id` | Bearer | ORGANIZER |
-| 27 | Event Creation | `POST` | `/events/:id/save-draft` | Bearer | ORGANIZER |
-| 28 | Event Creation | `PUT` | `/events/:id/ticketing` | Bearer | ORGANIZER |
-| 29 | Event Creation | `POST` | `/events/:id/tickets` | Bearer | ORGANIZER |
-| 30 | Event Creation | `GET` | `/events/:id/review` | Bearer | ORGANIZER |
-| 31 | Event Creation | `POST` | `/events/:id/publish` | Bearer | ORGANIZER |
-| 32 | Event Management | `PATCH` | `/events/:eventId/tickets/:ticketId` | Bearer | ORGANIZER |
-| 33 | Event Management | `DELETE` | `/events/:eventId/tickets/:ticketId` | Bearer | ORGANIZER |
-| 34 | Event Management | `GET` | `/me/events` | Bearer | ORGANIZER |
-| 35 | Event Management | `DELETE` | `/events/:id` | Bearer | ORGANIZER |
-| 36 | Admin | `POST` | `/categories` | Bearer | ADMIN |
-| 37 | Admin | `DELETE` | `/categories/:id` | Bearer | ADMIN |
-| 38 | Account | `GET` | `/me` | Bearer | — |
-| 39 | Account | `PATCH` | `/me/profile` | Bearer | — |
-| 40 | Account | `PATCH` | `/me/profile-photo` | Bearer | — |
-| 41 | Account | `PUT` | `/me/change-password` | Bearer | — |
-| 42 | Account | `PATCH` | `/me/email` | Bearer | — |
-| 43 | Account | `GET` | `/me/confirm-email-change?token=` | Bearer | — |
-| 44 | Password Recovery | `POST` | `/auth/forgot-password` | None | — |
-| 45 | Password Recovery | `POST` | `/auth/reset-password?token=` | None | — |
-| 46 | Logout | `POST` | `/auth/logout` | Bearer | — |
+| 22 | Elevation | `GET` | `/me/elevation-request` | Bearer | — |
+| 23 | Elevation (Admin) | `GET` | `/admin/elevation-requests` | Bearer | ADMIN |
+| 24 | Elevation (Admin) | `PATCH` | `/admin/elevation-requests/:id/approve` | Bearer | ADMIN |
+| 25 | Elevation (Admin) | `PATCH` | `/admin/elevation-requests/:id/reject` | Bearer | ADMIN |
+| 26 | Event Creation | `POST` | `/events` | Bearer | ORGANIZER |
+| 27 | Event Creation | `PATCH` | `/events/:id` | Bearer | ORGANIZER |
+| 28 | Event Creation | `POST` | `/events/:id/save-draft` | Bearer | ORGANIZER |
+| 29 | Event Creation | `PUT` | `/events/:id/ticketing` | Bearer | ORGANIZER |
+| 30 | Event Creation | `POST` | `/events/:id/tickets` | Bearer | ORGANIZER |
+| 31 | Event Creation | `GET` | `/events/:id/review` | Bearer | ORGANIZER |
+| 32 | Event Creation | `POST` | `/events/:id/publish` | Bearer | ORGANIZER |
+| 33 | Event Management | `PATCH` | `/events/:eventId/tickets/:ticketId` | Bearer | ORGANIZER |
+| 34 | Event Management | `DELETE` | `/events/:eventId/tickets/:ticketId` | Bearer | ORGANIZER |
+| 35 | Event Management | `GET` | `/me/events` | Bearer | ORGANIZER |
+| 36 | Event Management | `DELETE` | `/events/:id` | Bearer | ORGANIZER |
+| 37 | Admin | `POST` | `/categories` | Bearer | ADMIN |
+| 38 | Admin | `DELETE` | `/categories/:id` | Bearer | ADMIN |
+| 39 | Account | `GET` | `/me` | Bearer | — |
+| 40 | Account | `PATCH` | `/me/profile` | Bearer | — |
+| 41 | Account | `PATCH` | `/me/profile-photo` | Bearer | — |
+| 42 | Account | `PUT` | `/me/change-password` | Bearer | — |
+| 43 | Account | `PATCH` | `/me/email` | Bearer | — |
+| 44 | Account | `GET` | `/me/confirm-email-change?token=` | Bearer | — |
+| 45 | Password Recovery | `POST` | `/auth/forgot-password` | None | — |
+| 46 | Password Recovery | `POST` | `/auth/reset-password?token=` | None | — |
+| 47 | Logout | `POST` | `/auth/logout` | Bearer | — |
 
 *`/events/near-me` — Bearer token is optional; required only when no `lat`/`lng` query params are provided.

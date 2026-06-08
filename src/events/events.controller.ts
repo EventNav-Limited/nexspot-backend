@@ -26,10 +26,27 @@ import { GetEventsNearMeDto } from './dto/get-events-near-me.dto.js';
 import { UpdateEventDto } from './dto/update-event.dto.js';
 import { UpdateTicketDto } from './dto/update-ticket.dto.js';
 import { SetTicketingDto } from './dto/set-ticketing.dto.js';
+import { OptionalJwtAuthGuard } from '../auth/guard/optional-jwt-auth.guard.js';
+import { PrismaService } from '../config/prisma.service.js';
+import { getTimezoneFromLocation } from '../lib/timezone.lib.js';
 
 @Controller('events')
 export class EventsController {
-  constructor(private readonly eventsService: EventsService) {}
+  constructor(
+    private readonly eventsService: EventsService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  /** Resolves viewer timezone from the DB. Falls back to 'UTC'. */
+  private async resolveViewerTimezone(userId?: string): Promise<string> {
+    if (!userId) return 'UTC';
+    const contact = await this.prisma.contact.findUnique({
+      where: { userId },
+      select: { timezone: true, city: true, country: true },
+    });
+    if (contact?.timezone) return contact.timezone;
+    return getTimezoneFromLocation(contact?.city, contact?.country);
+  }
 
   /**
    * Return a paginated list of published events with optional filtering
@@ -42,9 +59,41 @@ export class EventsController {
    *
    * @returns {SuccessResponse<{ events: Event[]; pagination: Pagination; applied_filters: object }>}
    */
+  @UseGuards(OptionalJwtAuthGuard)
   @Get()
-  async getEvents(@Query() query: GetEventsDto) {
-    return successResponse(await this.eventsService.getEvents(query));
+  async getEvents(@Query() query: GetEventsDto, @Req() req) {
+    const timezone = await this.resolveViewerTimezone(req.user?.id);
+    return successResponse(await this.eventsService.getEvents(query, timezone));
+  }
+
+  /**
+   * Return published IN_PERSON and HYBRID events within a radius of the
+   * given coordinates, ordered by distance ascending (Haversine formula).
+   * Provide lat/lng directly, or authenticate and rely on the saved contact
+   * coordinates from the user's profile.
+   *
+   * NOTE: This route MUST be declared before GET :slug — otherwise NestJS
+   * will match 'near-me' as a slug param and return 404.
+   *
+   * @route GET /events/near-me
+   * @security BearerAuth (optional — required only when lat/lng are omitted)
+   *
+   * @param query - { lat?, lng?, radius? (km, default 10, max 100), page?, per_page? }
+   *
+   * @returns {SuccessResponse<{ events: NearMeEvent[]; pagination: Pagination; coordinates_used: { lat, lng } }>}
+   *
+   * @throws {400} BAD_REQUEST - No lat/lng provided and user has no saved coordinates
+   * @throws {401} UNAUTHORIZED - No lat/lng provided and no auth token
+   */
+  @UseGuards(OptionalJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Get('near-me')
+  async getEventsNearMe(@Query() query: GetEventsNearMeDto, @Req() req) {
+    const userId = req.user?.id ?? null;
+    const timezone = await this.resolveViewerTimezone(userId ?? undefined);
+    return successResponse(
+      await this.eventsService.getEventsNearMe(userId, query, timezone),
+    );
   }
 
   /**
@@ -58,9 +107,11 @@ export class EventsController {
    *
    * @throws {404} NOT_FOUND - Event does not exist or is not published
    */
+  @UseGuards(OptionalJwtAuthGuard)
   @Get(':slug')
-  async getEvent(@Param('slug') slug: string) {
-    return successResponse(await this.eventsService.getEvent(slug));
+  async getEvent(@Param('slug') slug: string, @Req() req) {
+    const timezone = await this.resolveViewerTimezone(req.user?.id);
+    return successResponse(await this.eventsService.getEvent(slug, timezone));
   }
 
   /**
@@ -151,33 +202,6 @@ export class EventsController {
   @Post(':id/save-draft')
   async saveDraft(@Param('id') id: string, @Req() req) {
     return successResponse(await this.eventsService.saveDraft(req.user.id, id));
-  }
-
-  /**
-   * Return published IN_PERSON and HYBRID events within a radius of the
-   * given coordinates, ordered by distance ascending (Haversine formula).
-   * Provide lat/lng directly, or authenticate and rely on the saved contact
-   * coordinates from the user's profile.
-   *
-   * @route GET /events/near-me
-   * @security BearerAuth (optional — required only when lat/lng are omitted)
-   *
-   * @param query - { lat?, lng?, radius? (km, default 10, max 100), page?, per_page? }
-   *
-   * @returns {SuccessResponse<{ events: NearMeEvent[]; pagination: Pagination; coordinates_used: { lat, lng } }>}
-   *
-   * @throws {400} BAD_REQUEST - No lat/lng provided and user has no saved coordinates
-   * @throws {401} UNAUTHORIZED - No lat/lng provided and no auth token
-   */
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  @Get('near-me')
-  async getEventsNearMe(@Query() query: GetEventsNearMeDto, @Req() req) {
-    // userId is null if the user is not authenticated
-    const userId = req.user?.id ?? null;
-    return successResponse(
-      await this.eventsService.getEventsNearMe(userId, query),
-    );
   }
 
   /**
@@ -346,6 +370,9 @@ export class EventsController {
    * @throws {403} FORBIDDEN - Authenticated user does not own this ticket's event
    * @throws {404} NOT_FOUND - Ticket not found
    */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @HttpCode(HttpStatus.OK)
+  @Roles(Role.ORGANIZER)
   @Patch(':eventId/tickets/:ticketId')
   async updateTicket(
     @Param('ticketId') ticketId: string,
@@ -374,6 +401,8 @@ export class EventsController {
    * @throws {403} FORBIDDEN - Authenticated user does not own this ticket's event
    * @throws {404} NOT_FOUND - Ticket not found
    */
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ORGANIZER)
   @Delete(':eventId/tickets/:ticketId')
   @HttpCode(204)
   async deleteTicket(@Param('ticketId') ticketId: string, @Req() req) {

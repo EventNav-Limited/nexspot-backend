@@ -134,19 +134,19 @@ export class AuthService {
     }
 
     if (!user.isActive) {
-      // Send email — rollback user + session if it fails
       try {
         await this.emailVerificationLib.sendRegistrationVerification(
           user.id,
           user.email,
           user.firstName,
         );
-        throw new UnauthorizedException(
-          'Account not verified. please verify your account',
-        );
       } catch (error) {
         console.log(error);
       }
+      // Always throw — regardless of whether the email send succeeded
+      throw new UnauthorizedException(
+        'Account not verified. Please verify your account.',
+      );
     }
 
     const access_token = this.tokenService.generateAccessToken(user.id);
@@ -211,7 +211,9 @@ export class AuthService {
     }
 
     // 4. Generate tokens
-    const deviceId = crypto.randomUUID();
+    // Use a deterministic deviceId derived from googleId so every Google login
+    // reuses the same session row (upserted) instead of accumulating new rows.
+    const deviceId = `google:${user.googleId}`;
     const access_token = this.tokenService.generateAccessToken(user.id);
     const refresh_token = this.tokenService.generateRefreshToken(
       user.id,
@@ -221,7 +223,7 @@ export class AuthService {
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const tokenHash = await argon2.hash(refresh_token);
 
-    await this.tokenService.createSession({
+    await this.tokenService.updateSession({
       deviceId,
       tokenHash,
       user: { connect: { id: user.id } },
@@ -316,7 +318,6 @@ export class AuthService {
         secret: env.REFRESH_SECRET,
         ignoreExpiration: true, // ← key difference from refresh
       });
-      console.log(payload);
     } catch {
       // Malformed token — nothing to delete, just return
       return;

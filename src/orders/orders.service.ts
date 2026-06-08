@@ -92,7 +92,11 @@ export class OrdersService {
    * Confirms an order after successful payment.
    * Stores the payment gateway reference.
    */
-  async confirmOrder(orderId: string, paymentReference: string) {
+  async confirmOrder(
+    userId: string,
+    orderId: string,
+    paymentReference: string,
+  ) {
     const order = await this.prisma.orders.findUnique({
       where: { id: orderId },
       include: {
@@ -103,6 +107,8 @@ export class OrdersService {
     });
 
     if (!order) throw new NotFoundException('Order not found');
+    if (order.userId !== userId)
+      throw new ForbiddenException('You do not own this order');
     if (order.status !== OrderStatus.PENDING)
       throw new BadRequestException('Order is not in a pending state');
 

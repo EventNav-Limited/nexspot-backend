@@ -16,6 +16,7 @@ import { EmailVerificationLib } from '../lib/email-verification.lib.js';
 import { PrismaService } from '../config/prisma.service.js';
 import { OrderStatus } from '../generated/prisma/enums.js';
 import { GetMyEventsDto } from './dto/get-my-events.dto.js';
+import { getTimezoneFromLocation } from '../lib/timezone.lib.js';
 
 @Injectable()
 export class UsersService {
@@ -24,6 +25,19 @@ export class UsersService {
     private emailVerificationLib: EmailVerificationLib,
     private prisma: PrismaService,
   ) {}
+
+  /**
+   * Returns the IANA timezone for a user from their Contact record.
+   * Falls back to country-derived timezone, then 'UTC'.
+   */
+  private async getUserTimezone(userId: string): Promise<string> {
+    const contact = await this.prisma.contact.findUnique({
+      where: { userId },
+      select: { timezone: true, city: true, country: true },
+    });
+    if (contact?.timezone) return contact.timezone;
+    return getTimezoneFromLocation(contact?.city, contact?.country);
+  }
 
   // ─── user-details ──────────────────────────────────────────────────────────────
 
@@ -48,7 +62,7 @@ export class UsersService {
       );
     }
     // Compare passwords
-    const isMatch = await argon2.verify(dto.oldPassword, user.password);
+    const isMatch = await argon2.verify(user.password, dto.oldPassword);
     if (!isMatch) {
       throw new UnauthorizedException('Invalid password');
     }
@@ -112,7 +126,7 @@ export class UsersService {
     if (!user.password) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    const isMatch = await argon2.verify(dto.password, user.password);
+    const isMatch = await argon2.verify(user.password, dto.password);
     if (!isMatch) {
       throw new UnauthorizedException('Invalid password');
     }
@@ -178,14 +192,17 @@ export class UsersService {
   }
 
   async elevationRequest(userId: string) {
-    const requests = await this.prisma.elevationRequest.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'asc' },
-    });
+    const [requests, timezone] = await Promise.all([
+      this.prisma.elevationRequest.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.getUserTimezone(userId),
+    ]);
 
     return {
       requests: requests.map((r) => ({
-        ...this.usersHelper.mapRequest(r),
+        ...this.usersHelper.mapRequest(r, timezone),
       })),
     };
   }
@@ -195,6 +212,16 @@ export class UsersService {
    * Supports filtering by status and pagination.
    */
   async getMyEvents(organizerId: string, query: GetMyEventsDto) {
+    const [timezone, total] = await Promise.all([
+      this.getUserTimezone(organizerId),
+      this.prisma.events.count({
+        where: {
+          organizerId,
+          ...(query.status && { status: query.status }),
+        },
+      }),
+    ]);
+
     const page = Math.max(1, query.page ?? 1);
     const perPage = Math.min(50, Math.max(1, query.per_page ?? 20));
     const skip = (page - 1) * perPage;
@@ -204,32 +231,29 @@ export class UsersService {
       ...(query.status && { status: query.status }),
     };
 
-    const [events, total] = await Promise.all([
-      this.prisma.events.findMany({
-        where,
-        skip,
-        take: perPage,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          tickets: true,
-          _count: {
-            select: {
-              orders: {
-                where: { status: OrderStatus.CONFIRMED },
-              },
+    const events = await this.prisma.events.findMany({
+      where,
+      skip,
+      take: perPage,
+      orderBy: { createdAt: 'desc' },
+      include: {
+        tickets: true,
+        _count: {
+          select: {
+            orders: {
+              where: { status: OrderStatus.CONFIRMED },
             },
           },
         },
-      }),
-      this.prisma.events.count({ where }),
-    ]);
+      },
+    });
 
     const totalPages = Math.ceil(total / perPage);
 
     return {
       events: events.map((e) => ({
-        ...mapEvent(e),
-        confirmed_orders: e._count.orders, // how many confirmed orders this event has
+        ...mapEvent(e, timezone),
+        confirmed_orders: e._count.orders,
       })),
       pagination: {
         current_page: page,

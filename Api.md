@@ -782,6 +782,32 @@ Submits a request for the authenticated `ATTENDEE` to be promoted to `ORGANIZER`
 
 ---
 
+#### `GET /me/elevation-request`
+
+Returns the authenticated user's own elevation request(s). Because each submission upserts the single request per user, the array will contain at most one entry.
+
+**Auth:** Bearer token
+
+**Response `200`:**
+```json
+{
+  "success": true,
+  "data": {
+    "requests": [
+      {
+        "id": "uuid",
+        "createdAt": "6 Jun | 10:30 AM",
+        "status": "PENDING",
+        "reviewedAt": null,
+        "reviewNote": null
+      }
+    ]
+  }
+}
+```
+
+---
+
 #### `GET /me/events`
 
 Returns the authenticated organizer's own events, with pagination and optional status filtering.
@@ -1897,7 +1923,8 @@ Rejects an elevation request with an optional review note.
 | `PUT` | `/me/change-password` | Bearer | — | Change password |
 | `PATCH` | `/me/email` | Bearer | — | Request email change |
 | `GET` | `/me/confirm-email-change` | Bearer | — | Confirm email change |
-| `POST` | `/me/elevation-request` | Bearer | `ATTENDEE` | Request organizer promotion |
+| `POST` | `/me/elevation-request` | Bearer | `ATTENDEE` | Submit organizer promotion request |
+| `GET` | `/me/elevation-request` | Bearer | — | Get own elevation request status |
 | `GET` | `/me/events` | Bearer | `ORGANIZER` | Get own events |
 | `GET` | `/me/orders` | Bearer | — | Get own orders |
 | `GET` | `/events` | None | — | Browse published events |
