@@ -16,7 +16,11 @@ export class EventsTicketingService {
     private readonly timezoneHelper: TimezoneHelper,
   ) {}
 
-  async createTicket(organizerId: string, eventId: string, dto: CreateTicketDto) {
+  async createTicket(
+    organizerId: string,
+    eventId: string,
+    dto: CreateTicketDto,
+  ) {
     const event = await this.prisma.events.findUnique({
       where: { id: eventId },
     });
@@ -57,7 +61,9 @@ export class EventsTicketingService {
     if (event.organizerId !== organizerId)
       throw new ForbiddenException('You do not own this event');
     if (event.status !== EventStatus.DRAFT)
-      throw new BadRequestException('Can only remove tickets from draft events');
+      throw new BadRequestException(
+        'Can only remove tickets from draft events',
+      );
 
     const ticket = await this.prisma.tickets.findUnique({
       where: { id: ticketId },

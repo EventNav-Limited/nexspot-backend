@@ -22,7 +22,9 @@ import { successResponse } from '../../lib/response.lib.js';
 
 @Controller('events')
 export class EventsManagementController {
-  constructor(private readonly eventsManagementService: EventsManagementService) {}
+  constructor(
+    private readonly eventsManagementService: EventsManagementService,
+  ) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.CREATED)

@@ -7,7 +7,10 @@ import { TokenService } from './token.service.js';
 import { EmailVerificationLib } from '../../lib/email-verification.lib.js';
 import { mapUser } from '../../users/users.mapper.js';
 import { env } from '../../config/env.js';
-import { UnauthorizedException, ConflictException } from '../../lib/error.lib.js';
+import {
+  UnauthorizedException,
+  ConflictException,
+} from '../../lib/error.lib.js';
 
 @Injectable()
 export class AuthLoginService {
@@ -51,7 +54,10 @@ export class AuthLoginService {
     }
 
     const access_token = this.tokenService.generateAccessToken(user.id);
-    const refresh_token = this.tokenService.generateRefreshToken(user.id, deviceId);
+    const refresh_token = this.tokenService.generateRefreshToken(
+      user.id,
+      deviceId,
+    );
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const tokenHash = await argon2.hash(refresh_token);
 
@@ -101,7 +107,10 @@ export class AuthLoginService {
 
     const deviceId = `google:${user.googleId}`;
     const access_token = this.tokenService.generateAccessToken(user.id);
-    const refresh_token = this.tokenService.generateRefreshToken(user.id, deviceId);
+    const refresh_token = this.tokenService.generateRefreshToken(
+      user.id,
+      deviceId,
+    );
     const expiry = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const tokenHash = await argon2.hash(refresh_token);
 

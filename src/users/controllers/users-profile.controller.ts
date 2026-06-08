@@ -33,7 +33,10 @@ export class UsersProfileController {
   @Patch('profile')
   @HttpCode(HttpStatus.OK)
   async editProfile(@Req() req, @Body() dto: EditProfileDto) {
-    const data = await this.usersProfileService.editProfile(dto, req.user.email);
+    const data = await this.usersProfileService.editProfile(
+      dto,
+      req.user.email,
+    );
     return successResponse(data);
   }
 

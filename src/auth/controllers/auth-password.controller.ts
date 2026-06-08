@@ -1,4 +1,11 @@
-import { Body, Controller, HttpCode, HttpStatus, Post, Query } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Query,
+} from '@nestjs/common';
 import { AuthPasswordService } from '../services/auth-password.service.js';
 import { ForgotPasswordDto } from '../dto/forgot-password.dto.js';
 import { successResponse } from '../../lib/response.lib.js';

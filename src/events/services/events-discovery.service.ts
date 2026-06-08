@@ -38,8 +38,7 @@ export class EventsDiscoveryService {
     if (category_id) where.categoryId = category_id;
     if (format_id) where.formatId = format_id;
     if (date_from) where.startDate = { gte: new Date(date_from) };
-    if (date_to)
-      where.endDate = { ...where.endDate, lte: new Date(date_to) };
+    if (date_to) where.endDate = { ...where.endDate, lte: new Date(date_to) };
     if (location) {
       where.location = {
         path: ['city'],
@@ -137,7 +136,7 @@ export class EventsDiscoveryService {
       events = [...events, ...fallbackEvents];
     }
 
-    return events.map((e) => mapEvent(e as any, timezone));
+    return events.map((e) => mapEvent(e, timezone));
   }
 
   async getEventBySlug(slug: string, userId?: string) {

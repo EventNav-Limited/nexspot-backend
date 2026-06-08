@@ -16,7 +16,9 @@ import { GetEventsDto } from '../dto/get-events.dto.js';
 
 @Controller('events')
 export class EventsDiscoveryController {
-  constructor(private readonly eventsDiscoveryService: EventsDiscoveryService) {}
+  constructor(
+    private readonly eventsDiscoveryService: EventsDiscoveryService,
+  ) {}
 
   @Get()
   @UseGuards(OptionalJwtAuthGuard)
@@ -39,15 +41,9 @@ export class EventsDiscoveryController {
   @Get(':slug')
   @UseGuards(OptionalJwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async getEvent(
-    @Param('slug') slug: string,
-    @Req() req,
-  ) {
+  async getEvent(@Param('slug') slug: string, @Req() req) {
     return successResponse(
-      await this.eventsDiscoveryService.getEventBySlug(
-        slug,
-        req.user?.id,
-      ),
+      await this.eventsDiscoveryService.getEventBySlug(slug, req.user?.id),
     );
   }
 }

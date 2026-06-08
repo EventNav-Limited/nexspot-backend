@@ -21,7 +21,9 @@ import { successResponse } from '../../lib/response.lib.js';
 
 @Controller('events')
 export class EventsTicketingController {
-  constructor(private readonly eventsTicketingService: EventsTicketingService) {}
+  constructor(
+    private readonly eventsTicketingService: EventsTicketingService,
+  ) {}
 
   @UseGuards(JwtAuthGuard, RolesGuard)
   @HttpCode(HttpStatus.CREATED)
